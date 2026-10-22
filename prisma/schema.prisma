@@ -1,0 +1,330 @@
+// The shape of what this app stores.
+//
+// This file is the agent's editing surface: a change
+// to how the app keeps information is a change *here*, and Tellop's data-change
+// pipeline turns it into a reviewed, rehearsed step in `prisma/migrations/`.
+// Nothing edits those step files by hand - they are what has already been applied.
+//
+// The stored names are the ones this template has always used (`people`, `notes`,
+// `owner_id`, ...), kept through `@map`/`@@map` rather than renamed, so an app
+// created before this change reads its own saved information unchanged.
+//
+// There is deliberately no `url` here. Version 7 takes the location from the
+// config file beside it, and Tellop supplies that location per operation rather
+// than trusting whatever a project file happens to say.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../lib/data/generated"
+  moduleFormat = "esm"
+  runtime      = "nodejs"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Person {
+  id       String  @id
+  name     String
+  isSample Boolean @default(false) @map("is_sample")
+  notes    Note[]
+
+  @@map("people")
+}
+
+model Note {
+  id        Int    @id @default(autoincrement())
+  ownerId   String @map("owner_id")
+  body      String
+  createdAt String @map("created_at")
+  owner     Person @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, id], map: "notes_by_owner")
+  @@map("notes")
+}
+
+// ---- Marketing planner ----
+// Every row names its owner (one fixed owner on this Mac). Days are civil
+// YYYY-MM-DD strings, times HH:MM, instants ISO strings. Fields ending in
+// `File` (and `file`) hold a kept file's digest.
+
+model Profile {
+  ownerId        String   @id @map("owner_id")
+  businessName   String   @default("") @map("business_name")
+  offer          String   @default("")
+  audience       String   @default("")
+  goal           String   @default("")
+  voice          String   @default("")
+  pictureStyle   String   @default("") @map("picture_style")
+  postsPerWeek   Int      @default(3) @map("posts_per_week")
+  networks       String   @default("")
+  profileLink    String   @default("") @map("profile_link")
+  reviewLink     String   @default("") @map("review_link")
+  showDays       String   @default("both") @map("show_days")
+  hiddenDays     String   @default("") @map("hidden_days")
+  logoFile       String?  @map("logo_file")
+  createdAt      String   @map("created_at")
+  updatedAt      String   @map("updated_at")
+  brandColour    String?  @map("brand_colour")
+  brandColour2   String?  @map("brand_colour_2")
+  logoOnPictures Boolean? @map("logo_on_pictures")
+  trackLinks     Boolean? @map("track_links")
+
+  @@map("profiles")
+}
+
+model Theme {
+  id        Int      @id @default(autoincrement())
+  ownerId   String   @map("owner_id")
+  name      String
+  about     String   @default("")
+  colour    Int
+  position  Int
+  hashtags  String   @default("")
+  archived  Boolean  @default(false)
+  createdAt String   @map("created_at")
+  updatedAt String   @map("updated_at")
+  sells     Boolean?
+
+  @@index([ownerId, position], map: "themes_by_owner")
+  @@map("themes")
+}
+
+model Campaign {
+  id        Int     @id @default(autoincrement())
+  ownerId   String  @map("owner_id")
+  name      String
+  goal      String  @default("")
+  offer     String  @default("")
+  startsOn  String  @map("starts_on")
+  endsOn    String  @map("ends_on")
+  doneEarly Boolean @default(false) @map("done_early")
+  notes     String  @default("")
+  createdAt String  @map("created_at")
+  updatedAt String  @map("updated_at")
+  code      String?
+
+  @@index([ownerId, startsOn], map: "campaigns_by_owner")
+  @@map("campaigns")
+}
+
+model CampaignStep {
+  id         Int     @id @default(autoincrement())
+  ownerId    String  @map("owner_id")
+  campaignId Int     @map("campaign_id")
+  text       String
+  dueOn      String  @default("") @map("due_on")
+  done       Boolean @default(false)
+  position   Int
+
+  @@index([ownerId, campaignId], map: "campaign_steps_by_campaign")
+  @@map("campaign_steps")
+}
+
+model Post {
+  id         Int     @id @default(autoincrement())
+  ownerId    String  @map("owner_id")
+  name       String
+  mainText   String  @default("") @map("main_text")
+  day        String?
+  time       String?
+  themeId    Int?    @map("theme_id")
+  campaignId Int?    @map("campaign_id")
+  specialDay String? @map("special_day")
+  madeBy     String  @default("person") @map("made_by")
+  createdAt  String  @map("created_at")
+  updatedAt  String  @map("updated_at")
+  ask        String?
+  videoPlan  String? @map("video_plan")
+  fromPostId Int?    @map("from_post_id")
+
+  @@index([ownerId, day], map: "posts_by_day")
+  @@index([ownerId, themeId], map: "posts_by_theme")
+  @@map("posts")
+}
+
+model PostVersion {
+  id                 Int     @id @default(autoincrement())
+  ownerId            String  @map("owner_id")
+  postId             Int     @map("post_id")
+  network            String
+  on                 Boolean @default(true)
+  text               String  @default("")
+  hashtags           String  @default("")
+  link               String  @default("")
+  firstComment       String  @default("") @map("first_comment")
+  changedByPerson    Boolean @default(false) @map("changed_by_person")
+  // Whether the words hold a must-fix check (over the limit, too many hashtags, a bad link), kept at every save of the words: for a post with no chosen picture, and with one (Telegram's caption limit is shorter).
+  mustFix            Boolean @default(false) @map("must_fix")
+  mustFixWithPicture Boolean @default(false) @map("must_fix_with_picture")
+  sharedAt           String? @map("shared_at")
+  sharedLink         String? @map("shared_link")
+  views              Int?
+  likes              Int?
+  comments           Int?
+  shares             Int?
+  saves              Int?
+  clicks             Int?
+  resultNote         String  @default("") @map("result_note")
+  resultAt           String? @map("result_at")
+  sendState          String? @map("send_state")
+  sendError          String? @map("send_error")
+  sentAt             String? @map("sent_at")
+  externalId         String? @map("external_id")
+  updatedAt          String  @map("updated_at")
+
+  @@unique([ownerId, postId, network], map: "post_versions_one_per_network")
+  @@index([ownerId, sharedAt], map: "post_versions_by_shared")
+  @@map("post_versions")
+}
+
+model PostPicture {
+  id            Int     @id @default(autoincrement())
+  ownerId       String  @map("owner_id")
+  postId        Int     @map("post_id")
+  source        String
+  file          String?
+  prompt        String  @default("")
+  change        String  @default("")
+  fromPictureId Int?    @map("from_picture_id")
+  words         String  @default("")
+  commentId     Int?    @map("comment_id")
+  chosen        Boolean @default(false)
+  description   String  @default("")
+  position      Int
+  width         Int     @default(0)
+  height        Int     @default(0)
+  focusX        Float   @default(0.5) @map("focus_x")
+  focusY        Float   @default(0.5) @map("focus_y")
+  fit           String  @default("auto")
+  squareFile    String? @map("square_file")
+  portraitFile  String? @map("portrait_file")
+  storyFile     String? @map("story_file")
+  wideFile      String? @map("wide_file")
+  landscapeFile String? @map("landscape_file")
+  tallFile      String? @map("tall_file")
+  gbpFile       String? @map("gbp_file")
+  createdAt     String  @map("created_at")
+  slide         Int?
+  story         Int?
+  layout        String?
+  subline       String?
+
+  @@index([ownerId, postId], map: "post_pictures_by_post")
+  @@map("post_pictures")
+}
+
+model ReadyWord {
+  id        Int     @id @default(autoincrement())
+  ownerId   String  @map("owner_id")
+  kind      String
+  title     String
+  text      String
+  network   String?
+  copied    Int     @default(0)
+  position  Int
+  createdAt String  @map("created_at")
+  updatedAt String  @map("updated_at")
+
+  @@index([ownerId, kind], map: "ready_words_by_kind")
+  @@map("ready_words")
+}
+
+model CustomerComment {
+  id             Int     @id @default(autoincrement())
+  ownerId        String  @map("owner_id")
+  name           String
+  text           String
+  bestLine       String  @default("") @map("best_line")
+  stars          Int?
+  source         String  @default("other")
+  receivedOn     String  @map("received_on")
+  permission     String  @default("not-asked")
+  permissionNote String  @default("") @map("permission_note")
+  screenshotFile String? @map("screenshot_file")
+  createdAt      String  @map("created_at")
+  updatedAt      String  @map("updated_at")
+
+  @@index([ownerId, receivedOn], map: "customer_comments_by_day")
+  @@map("customer_comments")
+}
+
+model Enquiry {
+  id         Int     @id @default(autoincrement())
+  ownerId    String  @map("owner_id")
+  name       String
+  contact    String  @default("")
+  channel    String  @default("other")
+  postId     Int?    @map("post_id")
+  askedAbout String  @default("") @map("asked_about")
+  status     String  @default("new")
+  amount     Int?
+  receivedOn String  @map("received_on")
+  notes      String  @default("")
+  createdAt  String  @map("created_at")
+  updatedAt  String  @map("updated_at")
+  followUpOn String? @map("follow_up_on")
+  code       String?
+
+  @@index([ownerId, receivedOn], map: "enquiries_by_day")
+  @@index([ownerId, followUpOn], map: "enquiries_by_follow_up")
+  @@map("enquiries")
+}
+
+model SpecialDay {
+  id        Int     @id @default(autoincrement())
+  ownerId   String  @map("owner_id")
+  name      String
+  date      String
+  yearly    Boolean @default(true)
+  note      String  @default("")
+  createdAt String  @map("created_at")
+
+  @@index([ownerId, date], map: "special_days_by_date")
+  @@map("special_days")
+}
+
+model Followers {
+  id        Int    @id @default(autoincrement())
+  ownerId   String @map("owner_id")
+  month     String
+  network   String
+  count     Int
+  createdAt String @map("created_at")
+  updatedAt String @map("updated_at")
+
+  @@unique([ownerId, month, network], map: "followers_by_month")
+  @@map("followers")
+}
+
+model Inspiration {
+  id        Int    @id @default(autoincrement())
+  ownerId   String @map("owner_id")
+  link      String @default("")
+  note      String @default("")
+  themeId   Int?   @map("theme_id")
+  createdAt String @map("created_at")
+  updatedAt String @map("updated_at")
+
+  @@index([ownerId, createdAt], map: "inspiration_by_owner")
+  @@map("inspiration")
+}
+
+model Contact {
+  id                Int     @id @default(autoincrement())
+  ownerId           String  @map("owner_id")
+  name              String
+  phone             String  @default("")
+  email             String  @default("")
+  whatsappConsentOn String? @map("whatsapp_consent_on")
+  emailConsentOn    String? @map("email_consent_on")
+  consentHow        String  @default("") @map("consent_how")
+  iysOn             String? @map("iys_on")
+  notes             String  @default("")
+  createdAt         String  @map("created_at")
+  updatedAt         String  @map("updated_at")
+
+  @@index([ownerId, name], map: "contacts_by_name")
+  @@map("contacts")
+}

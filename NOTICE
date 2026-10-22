@@ -1,0 +1,10 @@
+Marketing planner
+Copyright 2026 Pathnomic Labs
+
+Made for Tellop by Pathnomic Labs.
+Licensed under the Apache License, Version 2.0 (LICENSE).
+
+components/ui/ and components/reui/ hold pieces vendored from shadcn/ui
+(Copyright (c) 2023 shadcn) and ReUI (Copyright (c) 2025 Keenthemes Inc), both
+licensed under the MIT License. Their licence texts are in components/LICENSES/,
+and components/PROVENANCE.json records where each piece came from.

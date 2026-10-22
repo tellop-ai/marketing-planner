@@ -1,0 +1,46 @@
+/*
+ * The Marketing planner's own look: a warm off-white page, white cards, deep
+ * ink, a deep indigo for buttons and marks, and five theme colours that stay
+ * apart from each other on a month calendar.
+ *
+ * Whole-file: Tellop replaces this file whole when the person picks another
+ * look. The app is light only. It has no dark set, and nothing turns one on.
+ */
+
+:root {
+  color-scheme: light;
+  --background: #f7f5f2;
+  --foreground: #1c1a17;
+  --card: #ffffff;
+  --card-foreground: #1c1a17;
+  --popover: #ffffff;
+  --popover-foreground: #1c1a17;
+  --primary: #2f2a6b;
+  --primary-foreground: #ffffff;
+  --secondary: #ebe8f5;
+  --secondary-foreground: #1c1a17;
+  --muted: #efece7;
+  --muted-foreground: #5d5851;
+  --accent: #e7e3f6;
+  --accent-foreground: #1c1a17;
+  --destructive: #b3363a;
+  --destructive-foreground: #ffffff;
+  --border: #e2ddd5;
+  --input: #d6d0c6;
+  --ring: #2f2a6b;
+  --chart-1: #d9480f;
+  --chart-2: #1971c2;
+  --chart-3: #2b8a3e;
+  --chart-4: #c2255c;
+  --chart-5: #6741d9;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1c1a17;
+  --sidebar-primary: #2f2a6b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #efece7;
+  --sidebar-accent-foreground: #1c1a17;
+  --sidebar-border: #e2ddd5;
+  --sidebar-ring: #2f2a6b;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(28, 26, 23, 0.06), 0 8px 24px -8px rgba(28, 26, 23, 0.14);
+}

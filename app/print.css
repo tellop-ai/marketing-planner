@@ -1,0 +1,31 @@
+/* No browser address/date margin. The page itself supplies printable room. */
+@page {
+  margin: 0;
+}
+
+@media print {
+  [data-print-hidden] { display: none !important; }
+  html, body { margin: 0; height: auto; overflow: visible; }
+  .print-page {
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 12mm !important;
+    overflow: visible !important;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .print-page * {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
+  .print-page h1, .print-page h2, .print-page h3 { break-after: avoid; }
+  .print-page p, .print-page li { orphans: 3; widows: 3; }
+  .print-page img { break-inside: avoid; }
+}

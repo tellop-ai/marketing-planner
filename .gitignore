@@ -1,0 +1,19 @@
+# Installs and build output never belong in the repository.
+node_modules/
+.next/
+.turbopack/
+
+# What the app keeps for the people using it: their records in .data/app.db and
+# their photos and files in .data/files/.
+.data/
+
+# Private values are never written into a file: the app refuses to start while
+# one of these exists (lib/guard-no-plaintext-secrets.mjs).
+.env
+.env.*
+.envrc
+.npmrc
+.netrc
+
+.DS_Store
+Thumbs.db

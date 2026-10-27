@@ -32,6 +32,7 @@ const rules = await import('../app/week/rules.js');
 const { readWeekPage } = await import('../app/week/read.js');
 const { PAGES } = await import('../lib/pages.js');
 const { bounded, measured, mostInFlight } = await import('./records-bounds.mjs');
+const { weekTitle } = await import('../app/calendar/format.js');
 
 after(async () => {
   await closeStorage();
@@ -86,6 +87,15 @@ test('a week at the edge of the app\'s days has no week past it, and a week that
   assert.equal(last.next, null);
   assert.equal(rules.weekOf({ week: '2199-12-16' }, today, true).next, '2199-12-23');
   assert.equal(rules.weekOf({ week: '2199-12-31' }, today, true).from, '2026-10-19');
+});
+
+test('the week\'s title is written with plain spaces, as a browser writes it, so the page the server drew matches the one the browser draws', () => {
+  // Node writes thin spaces around a range's dash, a browser plain ones: the title differed and the page was drawn twice.
+  assert.equal(weekTitle('2026-10-25', '2026-10-31', 'en'), 'Oct 25 – 31, 2026');
+  assert.equal(weekTitle('2026-10-31', '2026-11-06', 'en'), 'Oct 31 – Nov 6, 2026');
+  assert.equal(weekTitle('2026-12-28', '2027-01-03', 'tr'), '28 Ara 2026 – 3 Oca 2027');
+  assert.equal(weekTitle('2026-10-26', '2026-11-01', 'tr'), '26 Eki – 1 Kas 2026');
+  assert.equal(weekTitle('2026-10-19', '2026-10-25', 'tr'), '19–25 Eki 2026');
 });
 
 test('the week page sits in the menu after the calendar', () => {

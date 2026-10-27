@@ -661,6 +661,40 @@ test('a change made while a save is on its way is not lost: it is saved after it
   assert.equal(run.mostOpen, 1);
 });
 
+test('the queue calls its timers as plain functions: a browser\'s own timers refuse any other `this` ("Illegal invocation")', async () => {
+  // Node's timers take any `this`, so only timers that refuse one, as a browser's do, catch a method-style call.
+  const calls = [];
+  const refuseThis = (self) => {
+    if (self !== undefined && self !== globalThis) throw new TypeError('Illegal invocation');
+  };
+  const sent = [];
+  const queue = new SaveQueue({
+    send: async (address, method, body) => {
+      sent.push(body);
+      return { ok: true, value: {} };
+    },
+    wait: 1,
+    setTimer: function (run, wait) {
+      refuseThis(this);
+      calls.push('set');
+      return setTimeout(run, wait);
+    },
+    clearTimer: function (timer) {
+      refuseThis(this);
+      calls.push('clear');
+      clearTimeout(timer);
+    },
+  });
+  queue.change('/api/plan', 'PUT', 'offer', 'Pottery');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await queue.settled();
+  await queue.change('/api/plan', 'PUT', 'trackLinks', false, 'now');
+  queue.change('/api/plan', 'PUT', 'voice', 'Warm');
+  queue.leave();
+  assert.deepEqual(sent, [{ offer: 'Pottery' }, { trackLinks: false }, { voice: 'Warm' }]);
+  assert.ok(calls.includes('set') && calls.includes('clear'), 'both timers were used');
+});
+
 test('the Brand card\'s eight ready colours: whole colours the field saves as they are, each with white or black words at 4.5:1 or more', () => {
   assert.equal(BRAND_PRESETS.length, 8);
   assert.equal(new Set(BRAND_PRESETS.map((preset) => preset.key)).size, 8);

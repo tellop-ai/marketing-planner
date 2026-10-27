@@ -53,7 +53,9 @@ export function shortDay(day, locale) {
 /** "Oct 19 – 25, 2026" / "19–25 Eki 2026". @param {string} from @param {string} to @param {string} locale */
 export function weekTitle(from, to, locale) {
   const formatter = new Intl.DateTimeFormat(language(locale), { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-  return formatter.formatRange(utcNoon(from), utcNoon(to));
+  // Node writes thin spaces around the dash, a browser plain ones: plain on both, so the page the server
+  // drew is the page the browser draws.
+  return formatter.formatRange(utcNoon(from), utcNoon(to)).replace(/[\u2009\u202f]/gu, ' ');
 }
 
 /** The day of the month, as a number. @param {string} day */

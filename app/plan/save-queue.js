@@ -53,8 +53,9 @@ export class SaveQueue {
     this.#onResult = onResult;
     this.#onSaved = onSaved;
     this.#wait = wait;
-    this.#setTimer = setTimer;
-    this.#clearTimer = clearTimer;
+    // Called as plain functions: a browser's own timers refuse any other `this` ("Illegal invocation").
+    this.#setTimer = (run, wait) => setTimer(run, wait);
+    this.#clearTimer = (timer) => clearTimer(timer);
   }
 
   /**

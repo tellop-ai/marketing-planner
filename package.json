@@ -5,9 +5,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 127.0.0.1",
     "build": "node node_modules/next/dist/bin/next build --webpack",
-    "start": "next start",
+    "start": "next start --hostname 127.0.0.1",
     "test": "node --test",
     "seed-test-users": "node scripts/seed-test-users.mjs"
   },
@@ -23,7 +23,7 @@
     "clsx": "2.1.1",
     "date-fns": "4.4.0",
     "lucide-react": "1.32.0",
-    "next": "16.3.5",
+    "next": "16.4.3",
     "react": "19.2.7",
     "react-day-picker": "10.0.1",
     "react-dom": "19.2.7",

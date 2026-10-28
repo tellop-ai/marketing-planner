@@ -61,6 +61,9 @@ const nextConfig = {
     return config;
   },
   experimental: {
+    // Tellop owns dependency qualification and agent rules, including offline builds.
+    agentUpgrade: false,
+    agentFeedback: false,
     // Next 16 turns React's debug channel on in development, and a page's first
     // load then waits for its debug data on the live-refresh socket before any of
     // its own code runs. Tellop's page check looks at the app from a browser with

@@ -8,6 +8,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { t } from '../../lib/i18n/index.js';
+import { useRights } from '../rights.jsx';
 
 /**
  * Ask for a review: the ready message with the review address from My plan,
@@ -19,6 +20,8 @@ import { t } from '../../lib/i18n/index.js';
  * @param {{ locale: string, business: string, reviewLink: string }} props
  */
 export function ReviewCard({ locale, business, reviewLink }) {
+  // My plan holds the review address: the way there is only for a person who may change it.
+  const { change: canChange } = useRights();
   const [copied, setCopied] = useState(false);
   const [problem, setProblem] = useState(false);
   const message = t('comments.ask.message', locale, { link: reviewLink, business: String(business ?? '').trim() }).trim();
@@ -65,8 +68,13 @@ export function ReviewCard({ locale, business, reviewLink }) {
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            {t('comments.ask.noLink', locale)}{' '}
-            <Link href="/plan" className="font-medium text-primary underline-offset-4 hover:underline">{t('comments.ask.toPlan', locale)}</Link>
+            {t('comments.ask.noLink', locale)}
+            {canChange && (
+              <>
+                {' '}
+                <Link href="/plan" className="font-medium text-primary underline-offset-4 hover:underline">{t('comments.ask.toPlan', locale)}</Link>
+              </>
+            )}
           </p>
         )}
       </CardContent>

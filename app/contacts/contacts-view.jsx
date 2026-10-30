@@ -12,6 +12,8 @@ import { DataTable } from '@/components/ui/data-table';
 import { formatDate } from '../../lib/format.js';
 import { t } from '../../lib/i18n/index.js';
 
+import { useRights } from '../rights.jsx';
+
 import { ContactDialog } from './contact-dialog.jsx';
 import { channelGate, emailList, phoneText, whatsAppQueue } from './rules.js';
 import { SendCard } from './send-card.jsx';
@@ -88,13 +90,16 @@ function StackedStates({ contact, today, locale }) {
  * WhatsApp, email, İYS day; search reaches numbers and addresses too; on a
  * narrow window each contact is a stacked row). A name opens its window; Add
  * opens an empty one; `openId` (from `?open=<id>`) opens that contact's
- * window once, as Customers' "Add to contacts" asks.
+ * window once, as Customers' "Add to contacts" asks. Add is drawn only for a
+ * person who may add (`useRights`); a contact's window is read only for a
+ * person who may not change it (`ContactForm`).
  *
  * @param {{ locale: string, today: string, business: string, contacts: import('../../lib/data/contacts.js').ContactSummary[],
  *   answers: Array<{ id: number, kind: string, title: string, text: string }>, openId: number | null }} props
  */
 export function ContactsView({ locale, today, business, contacts, answers, openId }) {
   const router = useRouter();
+  const { add: canAdd } = useRights();
   const [editing, setEditing] = useState(/** @type {{ id: number | null, title: string | null } | null} */ (null));
   const [notice, setNotice] = useState(/** @type {string | null} */ (null));
 
@@ -163,10 +168,12 @@ export function ContactsView({ locale, today, business, contacts, answers, openI
     <div className="flex flex-col gap-5">
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">{t('contacts.title', locale)}</h1>
-        <Button type="button" className="ml-auto" onClick={() => { setNotice(null); setEditing({ id: null, title: null }); }}>
-          <Plus aria-hidden="true" />
-          {t('contacts.add', locale)}
-        </Button>
+        {canAdd && (
+          <Button type="button" className="ml-auto" onClick={() => { setNotice(null); setEditing({ id: null, title: null }); }}>
+            <Plus aria-hidden="true" />
+            {t('contacts.add', locale)}
+          </Button>
+        )}
       </header>
       {notice && <p role="status" className="text-sm text-muted-foreground">{t(notice, locale)}</p>}
       <CountsLine items={counts} />

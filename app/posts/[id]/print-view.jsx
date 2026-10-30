@@ -11,18 +11,20 @@ import { aspectOf, dayText, shapeOf, timeText, versionOf } from './rules.js';
  * on paper (the maker's controls are hidden there). The name, the day and
  * the theme, the chosen picture, then each network's words, hashtags, link
  * and first comment. `shown`: false while the maker prints something else
- * (the swipe set as a document, the video plan).
+ * (the swipe set as a document, the video plan). `onScreen`: shown on the
+ * screen too, as the post's page for a person who may not change it
+ * (`./post-view.jsx`).
  *
  * @param {{ locale: string, full: any, networks: string[], theme: { name: string } | null, picture: any,
- *   business: string, themeColour: number | null, today: string, shown?: boolean }} props
+ *   business: string, themeColour: number | null, today: string, shown?: boolean, onScreen?: boolean }} props
  */
-export function PrintVersions({ locale, full, networks, theme, picture, business, themeColour, today, shown = true }) {
+export function PrintVersions({ locale, full, networks, theme, picture, business, themeColour, today, shown = true, onScreen = false }) {
   const { post } = full;
   const day = post.day ? dayText(post.day, locale, today) : '';
   const when = day && post.time ? t('maker.when', locale, { day, time: timeText(post.time, locale) }) : day;
   const first = networks[0] ?? null;
   return (
-    <section className={cn('hidden flex-col gap-5', shown && 'print:flex')}>
+    <section className={cn('hidden flex-col gap-5', shown && 'print:flex', onScreen && 'flex')}>
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">{post.name || t('post.untitled', locale)}</h1>
         {(when || theme) && <p className="text-sm text-muted-foreground">{[when, theme?.name].filter(Boolean).join(' · ')}</p>}

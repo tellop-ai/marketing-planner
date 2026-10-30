@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { formatDate } from '../../lib/format.js';
 import { t } from '../../lib/i18n/index.js';
 import { LIMITS } from '../../lib/plan/limits.js';
+import { useRights } from '../rights.jsx';
 import { sendUnconfirmed } from '../send.js';
 
 import { afterAddressChange, CHANNELS, CONSENT_FIELD, channelGate, emailOf, phoneOf, phoneText } from './rules.js';
@@ -99,12 +100,21 @@ function ContactLoader({ contactId, locale, today, onDone, onChanged }) {
 /**
  * One day of the consent block: "Add the day" when there is none, else the
  * day field with × (a day not kept yet) or the stop press (a kept yes).
+ * `readOnly`: the day only, or "None" (a contact to read, not to change).
  *
  * @param {{ id: string, label: string, value: string | null, onChange: (day: string | null) => void, locale: string, today: string,
- *   stop?: { onStop: () => void, busy: boolean } | null }} props
+ *   stop?: { onStop: () => void, busy: boolean } | null, rest?: string | null, readOnly?: boolean }} props
  */
-function DayChoice({ id, label, value, onChange, locale, today, stop = null, rest = null }) {
+function DayChoice({ id, label, value, onChange, locale, today, stop = null, rest = null, readOnly = false }) {
   const words = { choose: t('contacts.day.choose', locale), invalid: t('contacts.day.invalid', locale), failed: t('contacts.day.invalid', locale), saved: '' };
+  if (value === null && readOnly) {
+    return (
+      <Field>
+        <span className="text-sm font-medium">{label}</span>
+        <span className="text-sm text-muted-foreground">{t('contacts.day.none', locale)}</span>
+      </Field>
+    );
+  }
   if (value === null) {
     return (
       <Field>
@@ -130,8 +140,9 @@ function DayChoice({ id, label, value, onChange, locale, today, stop = null, res
         onSave={(next) => { onChange(next); return next; }}
         words={words}
         calendarLocale={locale === 'tr' ? tr : enUS}
+        disabled={readOnly}
       />
-      {stop ? (
+      {readOnly ? null : stop ? (
         <Button type="button" variant="outline" disabled={stop.busy} onClick={stop.onStop}>
           <Hand aria-hidden="true" />
           {t('contacts.stop', locale)}
@@ -147,6 +158,9 @@ function DayChoice({ id, label, value, onChange, locale, today, stop = null, res
 
 /** @param {{ contact: object | null, locale: string, today: string, onDone: (key: string) => void, onChanged: () => void }} props */
 export function ContactForm({ contact, locale, today, onDone, onChanged }) {
+  // A person who may not change a kept contact (`useRights`) reads it, unchangeable, with no They said stop, Save or Remove.
+  const { change: canChange } = useRights();
+  const readOnly = Boolean(contact) && !canChange;
   const [kept, setKept] = useState(contact);
   const [name, setName] = useState(contact?.name ?? '');
   const [phone, setPhone] = useState(phoneText(contact?.phone ?? ''));
@@ -219,7 +233,7 @@ export function ContactForm({ contact, locale, today, onDone, onChanged }) {
 
   return (
     <form onSubmit={save} className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="-mx-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
+      <fieldset disabled={readOnly} className="-mx-4 flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
         <Field>
           <FieldLabel htmlFor={id('name')}>{t('contacts.field.name', locale)}</FieldLabel>
           <Input id={id('name')} value={name} onValueChange={setName} required maxLength={LIMITS.name} autoComplete="off" />
@@ -251,6 +265,7 @@ export function ContactForm({ contact, locale, today, onDone, onChanged }) {
               locale={locale}
               today={today}
               stop={kept && kept[CONSENT_FIELD[channel]] ? { onStop: () => stop(channel), busy } : null}
+              readOnly={readOnly}
             />
           )))}
           <Field>
@@ -265,6 +280,7 @@ export function ContactForm({ contact, locale, today, onDone, onChanged }) {
             locale={locale}
             today={today}
             rest={anyYes ? null : t('contacts.iys.yesFirst', locale)}
+            readOnly={readOnly}
           />
           <p className="text-xs text-muted-foreground">{t('contacts.iys.outside', locale)}</p>
           {gates.map(({ channel, gate }) => (
@@ -284,23 +300,25 @@ export function ContactForm({ contact, locale, today, onDone, onChanged }) {
           <FieldLabel htmlFor={id('notes')}>{t('contacts.field.notes', locale)}</FieldLabel>
           <Textarea id={id('notes')} value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} maxLength={LIMITS.notes} />
         </Field>
-      </div>
+      </fieldset>
       {problem && <p role="alert" className="text-sm text-destructive">{t(problem, locale)}</p>}
-      <DialogFooter className="flex-wrap">
-        {contact && !removing && (
-          <Button type="button" variant="ghost" className="sm:mr-auto" disabled={busy} onClick={() => setRemoving(true)}>
-            {t('contacts.remove', locale)}
-          </Button>
-        )}
-        {contact && removing && (
-          <div className="flex flex-wrap items-center gap-2 sm:mr-auto">
-            <span className="text-sm">{t('contacts.removeAsk', locale)}</span>
-            <Button type="button" variant="destructive" disabled={busy} onClick={remove}>{t('contacts.remove', locale)}</Button>
-            <Button type="button" variant="ghost" disabled={busy} onClick={() => setRemoving(false)}>{t('contacts.keep', locale)}</Button>
-          </div>
-        )}
-        <Button type="submit" disabled={busy || removing}>{t('contacts.save', locale)}</Button>
-      </DialogFooter>
+      {!readOnly && (
+        <DialogFooter className="flex-wrap">
+          {contact && !removing && (
+            <Button type="button" variant="ghost" className="sm:mr-auto" disabled={busy} onClick={() => setRemoving(true)}>
+              {t('contacts.remove', locale)}
+            </Button>
+          )}
+          {contact && removing && (
+            <div className="flex flex-wrap items-center gap-2 sm:mr-auto">
+              <span className="text-sm">{t('contacts.removeAsk', locale)}</span>
+              <Button type="button" variant="destructive" disabled={busy} onClick={remove}>{t('contacts.remove', locale)}</Button>
+              <Button type="button" variant="ghost" disabled={busy} onClick={() => setRemoving(false)}>{t('contacts.keep', locale)}</Button>
+            </div>
+          )}
+          <Button type="submit" disabled={busy || removing}>{t('contacts.save', locale)}</Button>
+        </DialogFooter>
+      )}
     </form>
   );
 }

@@ -15,6 +15,7 @@ import { formatDate } from '../../lib/format.js';
 import { t } from '../../lib/i18n/index.js';
 import { LIMITS } from '../../lib/plan/limits.js';
 import { ConfirmRemove } from '../plan/confirm-remove.jsx';
+import { useRights } from '../rights.jsx';
 import { send } from '../send.js';
 
 import { GiveIdeasDialog } from './give-ideas-dialog.jsx';
@@ -32,12 +33,15 @@ import { InspirationSection } from './inspiration.jsx';
  * Saved for inspiration (the person's notes and links), the themes as a row
  * of chips that filter the ideas, and the ideas grouped by theme. What the
  * app confirmed shows as one short line; a refusal keeps the person's words.
+ * Who is here (`useRights`): Give me ideas and the New idea line only for a
+ * person who may add; Pick a day and Remove only for one who may change.
  *
  * @param {{ locale: string, today: string, ideas: Idea[], themes: Theme[], archivedThemes: Theme[], full: boolean,
  *   notes?: import('./inspiration.jsx').Note[], notesFull?: boolean }} props
  */
 export function IdeasBoard({ locale, today, ideas, themes, archivedThemes, full, notes = [], notesFull = false }) {
   const router = useRouter();
+  const { add: canAdd, change: canChange } = useRights();
   const calendarLocale = locale === 'tr' ? tr : enUS;
   const inputRef = useRef(/** @type {HTMLInputElement | null} */ (null));
   const [gone, setGone] = useState(() => new Set());
@@ -125,35 +129,39 @@ export function IdeasBoard({ locale, today, ideas, themes, archivedThemes, full,
     <div className="flex flex-col gap-5">
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">{t('menu.ideas', locale)}</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <Button type="button" variant="secondary" onClick={() => { setNotice(null); setGiving(true); }}>
-            <Sparkles aria-hidden="true" />
-            {t('ideas.give', locale)}
-          </Button>
-        </div>
+        {canAdd && (
+          <div className="ml-auto flex items-center gap-2">
+            <Button type="button" variant="secondary" onClick={() => { setNotice(null); setGiving(true); }}>
+              <Sparkles aria-hidden="true" />
+              {t('ideas.give', locale)}
+            </Button>
+          </div>
+        )}
       </header>
 
-      <form onSubmit={addIdea} className="flex flex-wrap items-center gap-2">
-        <div className="min-w-0 flex-[1_1_16rem]">
-          <Input
-            ref={inputRef}
-            value={draft}
-            maxLength={LIMITS.name}
-            aria-label={t('ideas.new.label', locale)}
-            placeholder={t('ideas.new.placeholder', locale)}
-            aria-invalid={addProblem !== null || undefined}
-            onChange={(event) => { setDraft(event.target.value); setAddProblem(null); }}
-          />
-        </div>
-        <NativeSelect aria-label={t('ideas.theme.label', locale)} value={draftTheme} onChange={(event) => setDraftTheme(event.target.value)}>
-          {themes.map((theme) => <NativeSelectOption key={theme.id} value={themeKey(theme.id)}>{theme.name}</NativeSelectOption>)}
-          <NativeSelectOption value="none">{t('ideas.theme.none', locale)}</NativeSelectOption>
-        </NativeSelect>
-        <Button type="submit" disabled={adding || draft.trim() === ''}>
-          <Plus aria-hidden="true" />
-          {t('ideas.new.add', locale)}
-        </Button>
-      </form>
+      {canAdd && (
+        <form onSubmit={addIdea} className="flex flex-wrap items-center gap-2">
+          <div className="min-w-0 flex-[1_1_16rem]">
+            <Input
+              ref={inputRef}
+              value={draft}
+              maxLength={LIMITS.name}
+              aria-label={t('ideas.new.label', locale)}
+              placeholder={t('ideas.new.placeholder', locale)}
+              aria-invalid={addProblem !== null || undefined}
+              onChange={(event) => { setDraft(event.target.value); setAddProblem(null); }}
+            />
+          </div>
+          <NativeSelect aria-label={t('ideas.theme.label', locale)} value={draftTheme} onChange={(event) => setDraftTheme(event.target.value)}>
+            {themes.map((theme) => <NativeSelectOption key={theme.id} value={themeKey(theme.id)}>{theme.name}</NativeSelectOption>)}
+            <NativeSelectOption value="none">{t('ideas.theme.none', locale)}</NativeSelectOption>
+          </NativeSelect>
+          <Button type="submit" disabled={adding || draft.trim() === ''}>
+            <Plus aria-hidden="true" />
+            {t('ideas.new.add', locale)}
+          </Button>
+        </form>
+      )}
 
       {addProblem && <p role="alert" className="-mt-3 text-sm text-destructive">{t(addProblem, locale)}</p>}
       {notice && <p role="status" className="-mt-2 text-sm text-muted-foreground">{t(notice.key, locale, notice.values)}</p>}
@@ -207,6 +215,7 @@ export function IdeasBoard({ locale, today, ideas, themes, archivedThemes, full,
                   locale={locale}
                   today={today}
                   calendarLocale={calendarLocale}
+                  canChange={canChange}
                   onMoved={moved}
                   onDelete={(chosen) => { setRemoveProblem(null); setNotice(null); setRemoving(chosen); }}
                 />

@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 
 import { t } from '../../lib/i18n/index.js';
 import { LIMITS } from '../../lib/plan/limits.js';
+import { useRights } from '../rights.jsx';
 
 import { contactWhatsAppAddress, emailList, emailText, endingText, lateCount, nextInQueue, phoneText, whatsAppQueue, withEnding } from './rules.js';
 
@@ -91,9 +92,16 @@ function Line({ warn = false, children }) {
  * those whose yes was not recorded in İYS within three business days (a
  * warning says how many).
  *
+ * Nothing here saves, so it is the same for everyone, but its lines that tell
+ * the person to add a yes day or the business's name say only what is
+ * missing to a person who may not change those (`useRights`).
+ *
  * @param {{ locale: string, today: string, business: string, contacts: object[], answers: Array<{ id: number, kind: string, title: string, text: string }> }} props
  */
 export function SendCard({ locale, today, business, contacts, answers }) {
+  const { change: canChange } = useRights();
+  /** A line's words: the one that says what to do, or only what is missing for a person who may not do it. */
+  const told = (key) => (canChange ? key : `${key}Read`);
   const [words, setWords] = useState('');
   const [answerId, setAnswerId] = useState('');
   const queue = useMemo(() => whatsAppQueue(contacts, today), [contacts, today]);
@@ -129,7 +137,7 @@ export function SendCard({ locale, today, business, contacts, answers }) {
   const name = String(business ?? '').trim();
   const ending = { business: name, stop: t('contacts.send.stopLine', locale) };
   const message = words.trim() === '' || name === '' ? '' : withEnding(words, ending);
-  const restLine = name === '' ? 'contacts.send.noBusiness' : 'contacts.send.wordsFirst';
+  const restLine = name === '' ? told('contacts.send.noBusiness') : 'contacts.send.wordsFirst';
 
   /** @param {string} value */
   function chooseAnswer(value) {
@@ -201,7 +209,7 @@ export function SendCard({ locale, today, business, contacts, answers }) {
               )}
             </InputGroup>
           </Field>
-          {name === '' && <Line warn>{t('contacts.send.noBusiness', locale)}</Line>}
+          {name === '' && <Line warn>{t(told('contacts.send.noBusiness'), locale)}</Line>}
           <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
             <IdCard aria-hidden="true" className="mt-px size-3.5 shrink-0" />
             <span>{t('contacts.send.identity', locale)}</span>
@@ -219,7 +227,7 @@ export function SendCard({ locale, today, business, contacts, answers }) {
               {t('contacts.channel.whatsapp', locale)}
               <span className="font-normal text-muted-foreground">{t('contacts.send.people', locale, { count: String(queue.length) })}</span>
             </h3>
-            {queue.length === 0 && resting.whatsapp.waiting + resting.whatsapp.late === 0 && <Line>{t('contacts.send.noneWhatsapp', locale)}</Line>}
+            {queue.length === 0 && resting.whatsapp.waiting + resting.whatsapp.late === 0 && <Line>{t(told('contacts.send.noneWhatsapp'), locale)}</Line>}
             {current && (
               <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-border p-3">
                 <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
@@ -280,7 +288,7 @@ export function SendCard({ locale, today, business, contacts, answers }) {
                 {t('contacts.send.emailCopy', locale)}
               </Button>
             </div>
-            {emails.length === 0 && resting.email.waiting + resting.email.late === 0 && <Line>{t('contacts.send.noneEmail', locale)}</Line>}
+            {emails.length === 0 && resting.email.waiting + resting.email.late === 0 && <Line>{t(told('contacts.send.noneEmail'), locale)}</Line>}
             {emails.length > 0 && message === '' && name !== '' && <Line>{t(restLine, locale)}</Line>}
             {messageLine && <Line warn={messageLine.warn}>{t(messageLine.key, locale)}</Line>}
             {messageLine?.text && <p className="rounded-md bg-muted px-2 py-1 text-xs whitespace-pre-wrap break-words select-all">{messageLine.text}</p>}

@@ -149,14 +149,18 @@ const thisMonth = (row) => ({
  * count's change from last month, the month by theme, by platform (and the
  * other places customers came from) and by ask, the best posts by customers,
  * and the followers typed for the month. It only shows what the page read;
- * only the followers fields save, each by itself.
+ * only the followers fields save, each by itself. Who is here (the page's
+ * `lib/plan/roles.js` answer): Read a numbers file fills results into kept
+ * posts and the followers fields change the month's numbers, so both need
+ * `canChange` (else the numbers only show); the download keeps the file it
+ * hands over, so it needs `canAdd`.
  *
  * @param {{ locale: string, month: string, today: string, business?: string,
  *   figures: Pick<Awaited<ReturnType<typeof import('./read.js').readResults>>, 'totals' | 'byTheme' | 'byNetwork' | 'byChannel' | 'byAsk' | 'byCode' | 'best' | 'followers'>,
  *   partial: boolean, sameDays?: boolean, networks: string[], themes: { id: number, name: string, colour: number }[],
- *   pictures: Record<number, object> }} props
+ *   pictures: Record<number, object>, canAdd?: boolean, canChange?: boolean }} props
  */
-export function ResultsView({ locale, month, today, business, figures, partial, sameDays = false, networks, themes, pictures, bestTimes = null }) {
+export function ResultsView({ locale, month, today, business, figures, partial, sameDays = false, networks, themes, pictures, bestTimes = null, canAdd = false, canChange = false }) {
   const { totals } = figures;
   // While the month runs, its counts are compared with the same days of the month before; followers are a month's number.
   const fromKey = sameDays ? 'results.change.fromSameDays' : 'results.change.fromLast';
@@ -198,10 +202,12 @@ export function ResultsView({ locale, month, today, business, figures, partial, 
         {!today.startsWith(month) && (
           <Link href="/results" className={buttonVariants({ variant: 'outline' })}>{t('results.month.this', locale)}</Link>
         )}
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-          <ImportDialog locale={locale} />
-          <ExportButton locale={locale} month={month} disabled={totals.shares.value === 0} />
-        </div>
+        {(canAdd || canChange) && (
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            {canChange && <ImportDialog locale={locale} />}
+            {canAdd && <ExportButton locale={locale} month={month} disabled={totals.shares.value === 0} />}
+          </div>
+        )}
       </header>
 
       <CountsLine
@@ -271,7 +277,7 @@ export function ResultsView({ locale, month, today, business, figures, partial, 
 
       <BestTimesCard locale={locale} networks={networks} bestTimes={bestTimes} />
 
-      <FollowersRow locale={locale} month={month} fields={followerFields(figures.followers, networks)} />
+      <FollowersRow locale={locale} month={month} fields={followerFields(figures.followers, networks)} canChange={canChange} />
     </div>
   );
 }

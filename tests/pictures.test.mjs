@@ -586,7 +586,8 @@ function standInPage({ tokens = TOKENS, failFileAt = null, refusePatch = false, 
   };
   globalThis.fetch = async (address, init = {}) => {
     seen.requests += 1;
-    if (address === '/api/files' && init.method === 'POST') {
+    // The kit's `sendFile` sends a file in pieces, each naming its place (`?size=&from=&to=`); these files are one piece.
+    if (String(address).split('?')[0] === '/api/files' && init.method === 'POST') {
       const number = seen.files.length + 1;
       if (number === failFileAt) {
         seen.files.push({ failed: true });
@@ -733,10 +734,10 @@ describe('drawing and keeping shapes', () => {
 
 describe('AI pictures rest after an AI problem that keeps refusing', () => {
   test('a lasting problem rests them with its reason', () => {
-    for (const key of ['ai.paused', 'ai.openTellop', 'ai.needsPermission', 'ai.signedOut', 'ai.accountChanged', 'ai.allowance', 'ai.unavailable', 'ai.practice', 'ai.appAiOff']) {
+    for (const key of ['ai.paused', 'ai.openTellop', 'ai.needsPermission', 'ai.signedOut', 'ai.accountChanged', 'ai.allowance', 'ai.unavailable', 'ai.practice', 'ai.appAiOff', 'ai.dailyLimit', 'ai.appPaused']) {
       assert.equal(aiStopOf(key), key, key);
     }
-    assert.equal(LASTING_AI_PROBLEMS.length, 9);
+    assert.equal(LASTING_AI_PROBLEMS.length, 11);
   });
 
   test('a problem that may pass at the next press leaves them pressable', () => {

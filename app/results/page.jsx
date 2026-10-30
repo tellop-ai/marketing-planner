@@ -4,6 +4,7 @@ import { DataError } from '../../lib/data/index.js';
 import { getLocale, t } from '../../lib/i18n/index.js';
 import { pictureBrandOf } from '../../lib/plan/card-layout.js';
 import { isCivilMonth, monthOf, todayCivil } from '../../lib/plan/days.js';
+import { rightsForThisVisit } from '../../lib/plan/visitor.js';
 import { PictureBrand } from '../pictures/brand.jsx';
 import { Shell } from '../shell.jsx';
 
@@ -22,6 +23,8 @@ export const dynamic = 'force-dynamic';
 /** @param {{ searchParams: Promise<Record<string, string | string[] | undefined>> }} props */
 export default async function ResultsPage({ searchParams }) {
   const locale = getLocale();
+  // Who is here decides what the page draws (lib/plan/roles.js); asked before any read, on its own.
+  const rights = await rightsForThisVisit();
   const query = (await searchParams) ?? {};
   const today = todayCivil();
   const month = typeof query.month === 'string' && isCivilMonth(query.month) ? query.month : monthOf(today);
@@ -33,7 +36,7 @@ export default async function ResultsPage({ searchParams }) {
   }
   if (!read.totals) {
     return (
-      <Shell locale={locale} path="/results">
+      <Shell locale={locale} path="/results" rights={rights}>
         <h1 className="text-xl font-semibold">{t('menu.results', locale)}</h1>
         <Alert variant="destructive">
           <AlertDescription>{t(read.problem, locale)}</AlertDescription>
@@ -44,7 +47,7 @@ export default async function ResultsPage({ searchParams }) {
   const business = read.plan.profile.businessName;
   const { totals, byTheme, byNetwork, byChannel, byAsk, byCode, best, followers } = read;
   return (
-    <Shell locale={locale} path="/results" business={business}>
+    <Shell locale={locale} path="/results" rights={rights} business={business}>
       <PictureBrand brand={pictureBrandOf(read.plan.profile)} />
       <ResultsView
         locale={locale}
@@ -58,6 +61,8 @@ export default async function ResultsPage({ searchParams }) {
         themes={read.themes.map(({ id, name, colour }) => ({ id, name, colour }))}
         pictures={read.pictures}
         bestTimes={read.bestTimes}
+        canAdd={rights.add}
+        canChange={rights.change}
       />
     </Shell>
   );

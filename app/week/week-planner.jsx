@@ -12,6 +12,7 @@ import { t } from '../../lib/i18n/index.js';
 import { dayTitle, weekTitle } from '../calendar/format.js';
 import { trackingFor } from '../../lib/plan/share.js';
 import { colourOf, coloursOf } from '../calendar/rules.js';
+import { useRights } from '../rights.jsx';
 import { sendUnconfirmed } from '../send.js';
 
 import { useAddToCalendar, useSaveAllPictures } from './downloads.js';
@@ -84,12 +85,14 @@ function ReadyLine({ locale, wordsKey, address, name }) {
  * The week's top line, as the calendar's: the week's days, previous and next
  * week, This week, then Save all pictures (not drawn when the week holds no
  * picture) and Add to my calendar; under it, what their last press answered,
- * and why Save all pictures rests.
+ * and why Save all pictures rests. Both downloads keep the file they hand
+ * over, so they are drawn only for a person who may add (`useRights`).
  *
  * @param {{ locale: string, week: ReturnType<typeof import('./rules.js').weekOf>, empty: boolean,
  *   pictures: ReturnType<typeof useSaveAllPictures>, calendar: ReturnType<typeof useAddToCalendar> }} props
  */
 export function WeekHeader({ locale, week, empty, pictures, calendar }) {
+  const { add } = useRights();
   const outlineIcon = cn(buttonVariants({ variant: 'outline', size: 'icon' }), 'bg-card');
   const resting = pictures.rest !== null && !pictures.none && !pictures.result;
   return (
@@ -111,7 +114,7 @@ export function WeekHeader({ locale, week, empty, pictures, calendar }) {
         <Link href="/week" aria-current={week.thisWeek ? 'date' : undefined} className={cn(buttonVariants({ variant: 'outline' }), 'bg-card')}>
           {t('week.thisWeek', locale)}
         </Link>
-        {!empty && (
+        {!empty && add && (
           <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
             {!pictures.none && (
               <Button type="button" variant="outline" disabled={pictures.pending || pictures.rest !== null} onClick={pictures.run} className="bg-card">
@@ -127,7 +130,7 @@ export function WeekHeader({ locale, week, empty, pictures, calendar }) {
         )}
       </header>
 
-      {!empty && (resting || pictures.result || calendar.result) && (
+      {!empty && add && (resting || pictures.result || calendar.result) && (
         <div className="flex flex-col gap-1.5">
           {resting && (
             <>

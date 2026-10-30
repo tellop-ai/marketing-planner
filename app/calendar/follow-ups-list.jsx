@@ -10,6 +10,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { t } from '../../lib/i18n/index.js';
+import { useRights } from '../rights.jsx';
 import { sendUnconfirmed } from '../send.js';
 
 import { followUpChange, followUpMessage, FOLLOW_UPS_SHOWN, listedFollowUps, whatsAppAddress, whatsAppDigits } from './follow-ups.js';
@@ -24,13 +25,16 @@ import { shortDay } from './format.js';
  * **Tomorrow** moves it to tomorrow; each says what happened only after the
  * app confirms, then the calendar reads again and the person leaves the list.
  * The first few show; "Show all" shows the rest. When more are due than the
- * card lists, "And more in Customers" links to them.
+ * card lists, "And more in Customers" links to them. Done and Tomorrow
+ * change the customer's record, so only a person who may change sees them
+ * (`useRights`); Follow up saves nothing and stays for everyone.
  *
  * @param {{ locale: string, today: string, business: string,
  *   followUps: Array<{ id: number, name: string, contact: string, askedAbout: string, followUpOn: string }>, className?: string }} props
  */
 export function FollowUpsList({ locale, today, business, followUps, className }) {
   const router = useRouter();
+  const { change: canChange } = useRights();
   const [all, setAll] = useState(false);
   const [handled, setHandled] = useState(() => new Set());
   const [working, setWorking] = useState(/** @type {number | null} */ (null));
@@ -115,14 +119,18 @@ export function FollowUpsList({ locale, today, business, followUps, className })
                       {t('calendar.followUp.press', locale)}
                     </Button>
                   )}
-                  <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => change(followUp.id, 'done')}>
-                    <Check aria-hidden="true" />
-                    {t('calendar.followUp.done', locale)}
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => change(followUp.id, 'tomorrow')}>
-                    <CalendarClock aria-hidden="true" />
-                    {t('calendar.followUp.tomorrow', locale)}
-                  </Button>
+                  {canChange && (
+                    <>
+                      <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => change(followUp.id, 'done')}>
+                        <Check aria-hidden="true" />
+                        {t('calendar.followUp.done', locale)}
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => change(followUp.id, 'tomorrow')}>
+                        <CalendarClock aria-hidden="true" />
+                        {t('calendar.followUp.tomorrow', locale)}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
               {line && (

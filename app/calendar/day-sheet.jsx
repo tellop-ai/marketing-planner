@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/com
 
 import { t } from '../../lib/i18n/index.js';
 import { NewPostButton } from '../new-post-button.jsx';
+import { useRights } from '../rights.jsx';
 
 import { dayTitle } from './format.js';
 import { colourOf, specialPostBody } from './rules.js';
@@ -18,7 +19,8 @@ import { PostTile, ProposalTile, specialHint, specialIcon, specialName } from '.
 /**
  * One day, in a sheet: its special days with their suggestion, its posts and
  * any proposed ideas, **New post for <day>** for a special day and **New post
- * on this day**. Opening it reads nothing and saves nothing.
+ * on this day**. Opening it reads nothing and saves nothing. The two New post
+ * presses are drawn only for a person who may add (`useRights`).
  *
  * @param {{ locale: string, day: string | null, tiles: object[], proposals: Array<{ day: string, name: string }>,
  *   specialDays: object[], colours: Map<number, number>, business: string, onClose: () => void }} props
@@ -44,6 +46,7 @@ export function DaySheet({ locale, day, tiles, proposals, specialDays, colours, 
 }
 
 export function DayBody({ locale, day, tiles, proposals, specialDays, colours, business }) {
+  const { add } = useRights();
   return (
     <>
       <SheetHeader className="pr-12">
@@ -51,7 +54,7 @@ export function DayBody({ locale, day, tiles, proposals, specialDays, colours, b
       </SheetHeader>
       <div className="-mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4">
         {specialDays.map((special) => (
-          <SpecialDay key={special.key} locale={locale} day={day} special={special} />
+          <SpecialDay key={special.key} locale={locale} day={day} special={special} canAdd={add} />
         ))}
         {(tiles.length > 0 || proposals.length > 0) && (
           <ul className="flex flex-col gap-2">
@@ -68,9 +71,11 @@ export function DayBody({ locale, day, tiles, proposals, specialDays, colours, b
           </ul>
         )}
       </div>
-      <SheetFooter>
-        <NewPostButton locale={locale} day={day} label={t('calendar.day.newPost', locale)} className="w-full" />
-      </SheetFooter>
+      {add && (
+        <SheetFooter>
+          <NewPostButton locale={locale} day={day} label={t('calendar.day.newPost', locale)} className="w-full" />
+        </SheetFooter>
+      )}
     </>
   );
 }
@@ -79,7 +84,7 @@ export function DayBody({ locale, day, tiles, proposals, specialDays, colours, b
  * A special day with its line and New post for it, which starts the post's
  * words box with the day's suggestion (not on a day of remembrance).
  */
-function SpecialDay({ locale, day, special }) {
+function SpecialDay({ locale, day, special, canAdd }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [problem, setProblem] = useState(/** @type {string | null} */ (null));
@@ -106,10 +111,12 @@ function SpecialDay({ locale, day, special }) {
         <span className="min-w-0 break-words">{name}</span>
       </div>
       {hint && <p className="text-muted-foreground">{hint}</p>}
-      <Button type="button" variant="outline" className="w-fit max-w-full bg-card" disabled={pending} onClick={make}>
-        <Plus aria-hidden="true" />
-        <span className="truncate">{t('calendar.day.newFor', locale, { name })}</span>
-      </Button>
+      {canAdd && (
+        <Button type="button" variant="outline" className="w-fit max-w-full bg-card" disabled={pending} onClick={make}>
+          <Plus aria-hidden="true" />
+          <span className="truncate">{t('calendar.day.newFor', locale, { name })}</span>
+        </Button>
+      )}
       {problem && <p role="alert" className="text-xs text-destructive">{t(problem, locale)}</p>}
     </div>
   );

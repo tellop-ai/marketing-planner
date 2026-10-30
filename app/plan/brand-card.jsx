@@ -17,6 +17,7 @@ import { t } from '../../lib/i18n/index.js';
 import { refusedHere, useAutoSave } from './auto-save.js';
 import { BRAND_PRESETS, colourToSave, isPreset, presetColour, swatchColour } from './brand.js';
 import { ResultLine } from './result-line.jsx';
+import { useRights } from '../rights.jsx';
 
 const PLAN_ADDRESS = '/api/plan';
 
@@ -58,6 +59,7 @@ function Swatch({ value, className }) {
  * @param {{ locale: string, profile: { brandColour?: string, brandColour2?: string, logoOnPictures?: boolean, logo?: string | null } }} props
  */
 export function BrandCard({ locale, profile }) {
+  const { change: canChange } = useRights();
   const [colours, setColours] = useState(() => ({ brandColour: profile.brandColour ?? '', brandColour2: profile.brandColour2 ?? '' }));
   const [logoOn, setLogoOn] = useState(() => profile.logoOnPictures === true);
   const { queue, result, setResult } = useAutoSave();
@@ -98,29 +100,31 @@ export function BrandCard({ locale, profile }) {
                   onBlur={() => queue.flush()}
                 />
               </InputGroup>
-              <div role="group" aria-label={t('plan.brand.presetsFor', locale, { field: t(field.label, locale) })} className="flex flex-wrap gap-1.5">
-                {BRAND_PRESETS.map((preset) => {
-                  const on = isPreset(colours[field.name], preset);
-                  return (
-                    <Toggle
-                      key={preset.key}
-                      size="sm"
-                      pressed={on}
-                      aria-label={t(`plan.brand.preset.${preset.key}`, locale)}
-                      title={t(`plan.brand.preset.${preset.key}`, locale)}
-                      onPressedChange={() => {
-                        if (!on) changeColour(field.name, presetColour(preset), 'now');
-                      }}
-                      className="size-7 min-w-7 rounded-full p-0 hover:bg-muted aria-pressed:bg-transparent aria-pressed:ring-2 aria-pressed:ring-foreground"
-                    >
-                      <Swatch value={presetColour(preset)} className="size-5" />
-                    </Toggle>
-                  );
-                })}
-              </div>
+              {canChange && (
+                <div role="group" aria-label={t('plan.brand.presetsFor', locale, { field: t(field.label, locale) })} className="flex flex-wrap gap-1.5">
+                  {BRAND_PRESETS.map((preset) => {
+                    const on = isPreset(colours[field.name], preset);
+                    return (
+                      <Toggle
+                        key={preset.key}
+                        size="sm"
+                        pressed={on}
+                        aria-label={t(`plan.brand.preset.${preset.key}`, locale)}
+                        title={t(`plan.brand.preset.${preset.key}`, locale)}
+                        onPressedChange={() => {
+                          if (!on) changeColour(field.name, presetColour(preset), 'now');
+                        }}
+                        className="size-7 min-w-7 rounded-full p-0 hover:bg-muted aria-pressed:bg-transparent aria-pressed:ring-2 aria-pressed:ring-foreground"
+                      >
+                        <Swatch value={presetColour(preset)} className="size-5" />
+                      </Toggle>
+                    );
+                  })}
+                </div>
+              )}
             </Field>
           ))}
-          {(colours.brandColour !== '' || colours.brandColour2 !== '') && (
+          {canChange && (colours.brandColour !== '' || colours.brandColour2 !== '') && (
             <div>
               <Button
                 type="button"
@@ -141,8 +145,8 @@ export function BrandCard({ locale, profile }) {
             <Switch
               id="plan-logo-on-pictures"
               checked={hasLogo && logoOn}
-              disabled={!hasLogo}
-              aria-describedby={hasLogo ? undefined : 'plan-logo-first'}
+              disabled={!hasLogo || !canChange}
+              aria-describedby={hasLogo || !canChange ? undefined : 'plan-logo-first'}
               onCheckedChange={(next) => {
                 const on = next === true;
                 setLogoOn(on);
@@ -152,7 +156,7 @@ export function BrandCard({ locale, profile }) {
             />
             <Label htmlFor="plan-logo-on-pictures">{t('plan.brand.logoOnPictures', locale)}</Label>
           </div>
-          {!hasLogo && <p id="plan-logo-first" className="text-sm text-muted-foreground">{t('plan.brand.logoFirst', locale)}</p>}
+          {!hasLogo && canChange && <p id="plan-logo-first" className="text-sm text-muted-foreground">{t('plan.brand.logoFirst', locale)}</p>}
         </div>
         <ResultLine locale={locale} result={result} />
       </CardContent>

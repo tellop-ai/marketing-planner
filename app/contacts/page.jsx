@@ -5,6 +5,7 @@ import { recordId } from '../../lib/data/customers.js';
 import { getLocale, t } from '../../lib/i18n/index.js';
 import { todayCivil } from '../../lib/plan/days.js';
 import { OWNER } from '../../lib/plan/owner.js';
+import { rightsForThisVisit } from '../../lib/plan/visitor.js';
 import { Shell } from '../shell.jsx';
 
 import { ContactsView } from './contacts-view.jsx';
@@ -23,13 +24,15 @@ export const dynamic = 'force-dynamic';
 /** @param {{ searchParams: Promise<Record<string, string | string[] | undefined>> }} props */
 export default async function ContactsPage({ searchParams }) {
   const locale = getLocale();
+  // Who is here decides what the page draws (lib/plan/roles.js); asked before any read, on its own.
+  const rights = await rightsForThisVisit();
   const query = (await searchParams) ?? {};
   let read;
   try {
     read = await readContactsPage({ owner: OWNER });
   } catch (error) {
     return (
-      <Shell locale={locale} path="/contacts">
+      <Shell locale={locale} path="/contacts" rights={rights}>
         <h1 className="text-xl font-semibold">{t('menu.contacts', locale)}</h1>
         <Alert variant="destructive">
           <AlertDescription>{t(error instanceof DataError ? error.messageKey : 'error.storageUnreadable', locale)}</AlertDescription>
@@ -38,7 +41,7 @@ export default async function ContactsPage({ searchParams }) {
     );
   }
   return (
-    <Shell locale={locale} path="/contacts" business={read.business}>
+    <Shell locale={locale} path="/contacts" rights={rights} business={read.business}>
       <ContactsView
         locale={locale}
         today={todayCivil()}

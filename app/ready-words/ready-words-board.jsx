@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { t } from '../../lib/i18n/index.js';
 import { LIMITS } from '../../lib/plan/limits.js';
 import { ConfirmRemove } from '../plan/confirm-remove.jsx';
+import { useRights } from '../rights.jsx';
 import { send } from '../send.js';
 
 /** @typedef {{ id: number, kind: string, title: string, text: string, network: string | null, copied: number, position: number }} ReadyWord */
@@ -90,11 +91,15 @@ function WordForm({ locale, kinds, editing, onSaved }) {
 
 /**
  * Ready words grouped by kind, each with its title, its words and Copy. New
- * opens a window; Edit and Remove sit in each one's menu.
+ * opens a window; Edit and Remove sit in each one's menu. Who is here
+ * (`useRights`): New for a person who may add, the menu for one who may
+ * change. Copy works for everyone; it counts the copy (a change to the kept
+ * words) only for a person who may change them.
  *
  * @param {{ locale: string, kinds: string[], readyWords: ReadyWord[] }} props
  */
 export function ReadyWordsBoard({ locale, kinds, readyWords }) {
+  const { add: canAdd, change: canChange } = useRights();
   const [items, setItems] = useState(readyWords);
   const [dialog, setDialog] = useState(/** @type {{ editing: ReadyWord | null } | null} */ (null));
   const [copied, setCopied] = useState(/** @type {{ id: number, problem?: string } | null} */ (null));
@@ -112,6 +117,8 @@ export function ReadyWordsBoard({ locale, kinds, readyWords }) {
       return;
     }
     setCopied({ id: item.id });
+    // The count is the kept words' own: a person who may not change them copies without it.
+    if (!canChange) return;
     const sent = await send(`/api/ready-words/${item.id}`, 'POST', { action: 'copied' });
     if (sent.ok && typeof sent.value.copied === 'number') {
       setItems((before) => before.map((word) => (word.id === item.id ? { ...word, copied: sent.value.copied } : word)));
@@ -150,13 +157,13 @@ export function ReadyWordsBoard({ locale, kinds, readyWords }) {
     <>
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">{t('menu.readyWords', locale)}</h1>
-        {items.length > 0 && <div className="ml-auto">{newButton}</div>}
+        {items.length > 0 && canAdd && <div className="ml-auto">{newButton}</div>}
       </header>
 
       {items.length === 0 ? (
         <div className="flex flex-col items-start gap-3">
           <p className="text-sm text-muted-foreground">{t('words.empty', locale)}</p>
-          {newButton}
+          {canAdd && newButton}
         </div>
       ) : (
         kinds.map((kind) => {
@@ -171,29 +178,31 @@ export function ReadyWordsBoard({ locale, kinds, readyWords }) {
                     <Card size="sm" className="h-full">
                       <CardHeader>
                         <CardTitle className="break-words">{word.title}</CardTitle>
-                        <CardAction>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label={t('words.menu', locale)} />}>
-                              <Ellipsis aria-hidden="true" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-auto">
-                              <DropdownMenuItem onClick={() => setDialog({ editing: word })}>
-                                <Pencil aria-hidden="true" />
-                                {t('words.edit', locale)}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => {
-                                  setRemoveProblem(null);
-                                  setRemoving(word);
-                                }}
-                              >
-                                <Trash2 aria-hidden="true" />
-                                {t('plan.remove', locale)}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </CardAction>
+                        {canChange && (
+                          <CardAction>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label={t('words.menu', locale)} />}>
+                                <Ellipsis aria-hidden="true" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-auto">
+                                <DropdownMenuItem onClick={() => setDialog({ editing: word })}>
+                                  <Pencil aria-hidden="true" />
+                                  {t('words.edit', locale)}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => {
+                                    setRemoveProblem(null);
+                                    setRemoving(word);
+                                  }}
+                                >
+                                  <Trash2 aria-hidden="true" />
+                                  {t('plan.remove', locale)}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </CardAction>
+                        )}
                       </CardHeader>
                       <CardContent className="flex-1">
                         <p className="whitespace-pre-wrap break-words text-muted-foreground">{word.text}</p>

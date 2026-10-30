@@ -18,6 +18,7 @@ import { tipPlace } from '../pictures/rules.js';
 import { PictureThumb } from '../pictures/thumb.jsx';
 import { bundleSet } from '../posts/[id]/bundle.js';
 import { pressStillCounts, setSavable } from '../posts/[id]/rules.js';
+import { useRights } from '../rights.jsx';
 import { send } from '../send.js';
 
 import { startDownload } from './downloads.js';
@@ -107,7 +108,10 @@ function useSaveSet({ locale, set, slides, shape, colour, business, onPicture })
  * platform's shape; "Open the post" where the copy is not kept yet), or
  * **Save pictures (n)** where the platform takes the post's swipe set, and
  * **Mark scheduled** (I shared it once the post's moment has passed). Once
- * marked: Scheduled or Shared, and Undo.
+ * marked: Scheduled or Shared, and Undo. Marking, Undo and Save pictures (n)
+ * (which keeps a missing copy on the post's picture) change the post, so a
+ * person who may not change it (`useRights`) gets Copy words, Save picture
+ * and Open the post, and reads the marks.
  *
  * @param {{ locale: string, postId: number, day: string, time: string | null, line: ReturnType<typeof platformLines>[number],
  *   slides: any[], colour: number | null, business: string, onVersion: (postId: number, version: any) => void,
@@ -115,6 +119,7 @@ function useSaveSet({ locale, set, slides, shape, colour, business, onPicture })
  */
 function PlatformLine({ locale, postId, day, time, line, slides, colour, business, onVersion, onPicture }) {
   const id = useId();
+  const { change } = useRights();
   const [copy, setCopy] = useState(/** @type {'idle' | 'copied' | 'refused'} */ ('idle'));
   const [working, setWorking] = useState(false);
   const [problem, setProblem] = useState(/** @type {string | null} */ (null));
@@ -181,18 +186,18 @@ function PlatformLine({ locale, postId, day, time, line, slides, colour, busines
                   {t('share.savePicture', locale)}
                 </a>
               )}
-              {line.picture === 'set' && (
+              {line.picture === 'set' && change && (
                 <Button type="button" variant="outline" size="sm" disabled={saveSet.working || !saveSet.savable.ok} onClick={saveSet.save}>
                   {saveSet.working ? spinner : <Download aria-hidden="true" />}
                   {t('share.savePictures', locale, { n: String(line.set?.length ?? 0) })}
                 </Button>
               )}
-              {line.picture === 'open' && (
-                <Link href={shareAddress(postId)} className={OUTLINE_SMALL}>
+              {(line.picture === 'open' || (line.picture === 'set' && !change)) && (
+                <Link href={change ? shareAddress(postId) : postAddress(postId)} className={OUTLINE_SMALL}>
                   {t('week.openPost', locale)}
                 </Link>
               )}
-              {line.action !== null && (
+              {line.action !== null && change && (
                 <Button type="button" variant="secondary" size="sm" disabled={working} onClick={() => mark(line.action)}>
                   {working ? spinner : line.action === 'scheduled' ? <Clock aria-hidden="true" /> : <CircleCheck aria-hidden="true" />}
                   {t(line.action === 'scheduled' ? 'week.markScheduled' : 'share.shared', locale)}
@@ -207,10 +212,12 @@ function PlatformLine({ locale, postId, day, time, line, slides, colour, busines
             {line.status === 'scheduled' ? <Clock aria-hidden="true" className="size-4 text-primary" /> : <CircleCheck aria-hidden="true" className="size-4 text-primary" />}
             {t(line.status === 'scheduled' ? 'state.scheduled' : 'share.sharedMark', locale)}
           </span>
-          <Button type="button" variant="ghost" size="sm" disabled={working} onClick={() => mark('unshared')} className="text-muted-foreground">
-            {working ? spinner : <Undo2 aria-hidden="true" />}
-            {t('share.undo', locale)}
-          </Button>
+          {change && (
+            <Button type="button" variant="ghost" size="sm" disabled={working} onClick={() => mark('unshared')} className="text-muted-foreground">
+              {working ? spinner : <Undo2 aria-hidden="true" />}
+              {t('share.undo', locale)}
+            </Button>
+          )}
         </div>
       )}
       {copy === 'refused' && line.status === 'none' && (
@@ -226,7 +233,7 @@ function PlatformLine({ locale, postId, day, time, line, slides, colour, busines
           />
         </div>
       )}
-      {line.picture === 'set' && line.status === 'none' && line.hasWords && !saveSet.savable.ok && (
+      {line.picture === 'set' && change && line.status === 'none' && line.hasWords && !saveSet.savable.ok && (
         <p className="basis-full text-sm text-muted-foreground">{t(saveSet.savable.reason, locale)}</p>
       )}
       {saveSet.address !== null && (
@@ -262,7 +269,9 @@ export function PostRow({ locale, post, record, networks, now, colour, business,
   // A post with no words on any platform yet (an idea with a day) says so once, not on every line.
   const wordless = lines !== null && lines.length > 0 && lines.every((line) => !line.hasWords && line.status === 'none');
   // Why a platform still to mark offers I shared it and not Mark scheduled: said once for the post.
-  const passed = lines !== null && !wordless && lines.some((line) => line.status === 'none' && line.hasWords && line.action === 'shared');
+  // (Only for a person who may mark it: `useRights`.)
+  const { change } = useRights();
+  const passed = change && lines !== null && !wordless && lines.some((line) => line.status === 'none' && line.hasWords && line.action === 'shared');
   return (
     <article
       aria-label={name}

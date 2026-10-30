@@ -20,6 +20,7 @@ import { isFollowUpDue } from '../calendar/follow-ups.js';
 
 import { ENQUIRY_STATUSES, channelLabel, statusLabel } from './choices.js';
 import { EnquiryDialog } from './enquiry-dialog.jsx';
+import { useRights } from '../rights.jsx';
 import { sendUnconfirmed } from '../send.js';
 import { ShowMore, usePages } from './show-more.jsx';
 
@@ -55,7 +56,10 @@ function useWide() {
  * Add, a row's edit window, and the month as a spreadsheet file (resting while
  * the month has nobody). The list's Follow up column marks the people due for
  * a follow-up today or earlier (as the calendar's Today card lists them); its
- * Code column shows on a wide window only.
+ * Code column shows on a wide window only. Who is here (`useRights`): Add and
+ * the spreadsheet (kept as a file to hand over) for a person who may add; a
+ * row's window opens for everyone, to read only for a person who may not
+ * change it (`EnquiryDialog`).
  *
  * @param {{ locale: string, month: string, today: string,
  *   enquiries: (import('../../lib/data/customers.js').Enquiry & { postName: string | null })[], next: string | null,
@@ -64,6 +68,7 @@ function useWide() {
  */
 export function CameTab({ locale, month, today, enquiries, next, totals, posts, networks }) {
   const router = useRouter();
+  const { add: canAdd } = useRights();
   const pages = usePages({ first: enquiries, next, path: '/api/enquiries', query: { month } });
   // A row from Show more names its post from the choices (the page named the first page's).
   const rows = useMemo(() => {
@@ -205,16 +210,18 @@ export function CameTab({ locale, month, today, enquiries, next, totals, posts, 
         {!today.startsWith(month) && (
           <Link href="/customers" className={buttonVariants({ variant: 'outline' })}>{t('customers.month.this', locale)}</Link>
         )}
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" disabled={exporting || totals.count === 0} onClick={exportMonth}>
-            <Download aria-hidden="true" />
-            {t('customers.export', locale)}
-          </Button>
-          <Button type="button" onClick={startAdd}>
-            <Plus aria-hidden="true" />
-            {t('customers.add', locale)}
-          </Button>
-        </div>
+        {canAdd && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" disabled={exporting || totals.count === 0} onClick={exportMonth}>
+              <Download aria-hidden="true" />
+              {t('customers.export', locale)}
+            </Button>
+            <Button type="button" onClick={startAdd}>
+              <Plus aria-hidden="true" />
+              {t('customers.add', locale)}
+            </Button>
+          </div>
+        )}
       </div>
 
       {notice && <p role="status" className="text-sm text-muted-foreground">{t(notice, locale)}</p>}

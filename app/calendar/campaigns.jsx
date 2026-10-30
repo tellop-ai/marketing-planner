@@ -30,6 +30,8 @@ import { LIMITS } from '../../lib/plan/limits.js';
 
 import { shortDay } from './format.js';
 import { colourOf, planAsk, planRest } from './rules.js';
+import { NewPostButton } from '../new-post-button.jsx';
+import { useRights } from '../rights.jsx';
 import { sendUnconfirmed } from '../send.js';
 import { PostTile, stateWords } from './tiles.jsx';
 
@@ -173,8 +175,16 @@ function CampaignBody({ locale, today, campaignId, colours, business, onClose, o
   );
 }
 
+/**
+ * One campaign in its sheet. Who is here (`useRights`): a person who may
+ * change it gets its fields with Save, the done marks, step removal and
+ * Remove; a person who may add gets new steps, Plan the posts and New post
+ * (a Member through New post's window, `NewPostButton`); everyone reads the
+ * fields, copies the code and prints.
+ */
 export function CampaignDetails({ locale, today, campaign, steps, posts, colours, business, onChange, onSteps, onPosts = () => {}, onClose, onPrint }) {
   const router = useRouter();
+  const { add: canAdd, change: canChange } = useRights();
   const id = useId();
   const [fields, setFields] = useState({ name: campaign.name, startsOn: campaign.startsOn, endsOn: campaign.endsOn, goal: campaign.goal, offer: campaign.offer, code: campaign.code ?? '' });
   const [copied, setCopied] = useState(false);
@@ -258,7 +268,7 @@ export function CampaignDetails({ locale, today, campaign, steps, posts, colours
         <form onSubmit={save} className="flex flex-col gap-3">
           <Field>
             <FieldLabel htmlFor={`${id}-name`}>{t('campaign.name', locale)}</FieldLabel>
-            <Input id={`${id}-name`} value={fields.name} onValueChange={(value) => edit('name', value)} maxLength={LIMITS.name} required autoComplete="off" />
+            <Input id={`${id}-name`} value={fields.name} onValueChange={(value) => edit('name', value)} maxLength={LIMITS.name} required autoComplete="off" disabled={!canChange} />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
             <DateField
@@ -266,6 +276,7 @@ export function CampaignDetails({ locale, today, campaign, steps, posts, colours
               className={DATE_FIELD}
               label={t('campaign.startsOn', locale)}
               value={fields.startsOn}
+              disabled={!canChange}
               onSave={(next) => { edit('startsOn', next); return next; }}
               words={dateWords(locale)}
               calendarLocale={locale === 'tr' ? tr : enUS}
@@ -275,6 +286,7 @@ export function CampaignDetails({ locale, today, campaign, steps, posts, colours
               className={DATE_FIELD}
               label={t('campaign.endsOn', locale)}
               value={fields.endsOn}
+              disabled={!canChange}
               onSave={(next) => { edit('endsOn', next); return next; }}
               words={dateWords(locale)}
               calendarLocale={locale === 'tr' ? tr : enUS}
@@ -282,11 +294,11 @@ export function CampaignDetails({ locale, today, campaign, steps, posts, colours
           </div>
           <Field>
             <FieldLabel htmlFor={`${id}-goal`}>{t('campaign.goal', locale)}</FieldLabel>
-            <Input id={`${id}-goal`} value={fields.goal} onValueChange={(value) => edit('goal', value)} maxLength={LIMITS.profileField} autoComplete="off" />
+            <Input id={`${id}-goal`} value={fields.goal} onValueChange={(value) => edit('goal', value)} maxLength={LIMITS.profileField} autoComplete="off" disabled={!canChange} />
           </Field>
           <Field>
             <FieldLabel htmlFor={`${id}-offer`}>{t('campaign.offer', locale)}</FieldLabel>
-            <Input id={`${id}-offer`} value={fields.offer} onValueChange={(value) => edit('offer', value)} maxLength={LIMITS.profileField} autoComplete="off" />
+            <Input id={`${id}-offer`} value={fields.offer} onValueChange={(value) => edit('offer', value)} maxLength={LIMITS.profileField} autoComplete="off" disabled={!canChange} />
           </Field>
           <Field>
             <FieldLabel htmlFor={`${id}-code`}>{t('campaign.code', locale)}</FieldLabel>
@@ -299,6 +311,7 @@ export function CampaignDetails({ locale, today, campaign, steps, posts, colours
                 autoComplete="off"
                 spellCheck={false}
                 className="min-w-0 flex-1"
+                disabled={!canChange}
               />
               {campaign.code !== '' && fields.code === campaign.code && (
                 <Button type="button" variant="outline" onClick={copyCode} aria-label={copied ? t('campaign.codeCopied', locale) : t('campaign.copyCode', locale)}>
@@ -308,28 +321,32 @@ export function CampaignDetails({ locale, today, campaign, steps, posts, colours
               )}
             </div>
           </Field>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" variant="outline" disabled={saving || fields.name.trim() === ''}>{t('campaign.save', locale)}</Button>
-            {result?.saved && (
-              <p role="status" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                <CircleCheck aria-hidden="true" className="size-4" />
-                {t('campaign.saved', locale)}
-              </p>
-            )}
-            {result?.problem && <p role="alert" className="text-sm text-destructive">{t(result.problem, locale)}</p>}
-          </div>
+          {canChange && (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" variant="outline" disabled={saving || fields.name.trim() === ''}>{t('campaign.save', locale)}</Button>
+              {result?.saved && (
+                <p role="status" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <CircleCheck aria-hidden="true" className="size-4" />
+                  {t('campaign.saved', locale)}
+                </p>
+              )}
+              {result?.problem && <p role="alert" className="text-sm text-destructive">{t(result.problem, locale)}</p>}
+            </div>
+          )}
         </form>
-        <Steps locale={locale} campaignId={campaign.id} steps={steps} onSteps={onSteps} />
-        <PlanPosts
-          locale={locale}
-          today={today}
-          campaign={campaign}
-          rest={planRest(campaign, fields)}
-          onPosts={(next) => {
-            onPosts(next);
-            router.refresh();
-          }}
-        />
+        <Steps locale={locale} campaignId={campaign.id} steps={steps} onSteps={onSteps} canAdd={canAdd} canChange={canChange} />
+        {canAdd && (
+          <PlanPosts
+            locale={locale}
+            today={today}
+            campaign={campaign}
+            rest={planRest(campaign, fields)}
+            onPosts={(next) => {
+              onPosts(next);
+              router.refresh();
+            }}
+          />
+        )}
         {posts.length > 0 && (
           <section className="flex flex-col gap-2">
             <h3 className="text-sm font-medium">{t('campaign.posts', locale)}</h3>
@@ -345,18 +362,25 @@ export function CampaignDetails({ locale, today, campaign, steps, posts, colours
       </div>
       <SheetFooter>
         {makeProblem && <p role="alert" className="text-xs text-destructive">{t(makeProblem, locale)}</p>}
-        <Button type="button" disabled={making} onClick={newPost}>
-          <Plus aria-hidden="true" />
-          {t('calendar.campaign.newPost', locale)}
-        </Button>
+        {canChange && (
+          <Button type="button" disabled={making} onClick={newPost}>
+            <Plus aria-hidden="true" />
+            {t('calendar.campaign.newPost', locale)}
+          </Button>
+        )}
+        {canAdd && !canChange && (
+          <NewPostButton locale={locale} day={newPostDay(campaign, today)} extra={{ campaignId: campaign.id }} label={t('calendar.campaign.newPost', locale)} />
+        )}
         <Button type="button" variant="outline" onClick={() => onPrint({ campaign: { ...campaign, ...fields }, steps, posts })}>
           <Printer aria-hidden="true" />
           {t('campaign.print', locale)}
         </Button>
-        <Button type="button" variant="ghost" className="text-destructive" onClick={() => setRemoving(true)}>
-          <Trash2 aria-hidden="true" />
-          {t('campaign.remove', locale)}
-        </Button>
+        {canChange && (
+          <Button type="button" variant="ghost" className="text-destructive" onClick={() => setRemoving(true)}>
+            <Trash2 aria-hidden="true" />
+            {t('campaign.remove', locale)}
+          </Button>
+        )}
       </SheetFooter>
       <AlertDialog open={removing} onOpenChange={(open) => { if (!open) { setRemoving(false); setRemoveProblem(null); } }}>
         <AlertDialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
@@ -530,8 +554,13 @@ function PlanPosts({ locale, today, campaign, rest, onPosts }) {
   );
 }
 
-/** A campaign's steps: a done mark each, remove, and one line to add a step. */
-function Steps({ locale, campaignId, steps, onSteps }) {
+/**
+ * A campaign's steps: a done mark each, remove, and one line to add a step.
+ * `canChange`: the done marks press and steps can be removed (else the marks
+ * only show); `canAdd`: the line to add a step. A Viewer sees the steps alone,
+ * and nothing at all while there are none.
+ */
+function Steps({ locale, campaignId, steps, onSteps, canAdd, canChange }) {
   const id = useId();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -575,6 +604,7 @@ function Steps({ locale, campaignId, steps, onSteps }) {
     onSteps(steps.filter((item) => item.id !== step.id));
   }
 
+  if (!canAdd && steps.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-sm font-medium">{t('campaign.steps', locale)}</h3>
@@ -582,16 +612,18 @@ function Steps({ locale, campaignId, steps, onSteps }) {
         <ul className="flex flex-col gap-1">
           {steps.map((step) => (
             <li key={step.id} className="flex min-w-0 items-center gap-2">
-              <Checkbox checked={step.done} onCheckedChange={(on) => mark(step, on === true)} aria-label={step.text} />
+              <Checkbox checked={step.done} disabled={!canChange} onCheckedChange={(on) => mark(step, on === true)} aria-label={step.text} />
               <span className={step.done ? 'min-w-0 flex-1 break-words text-muted-foreground line-through' : 'min-w-0 flex-1 break-words'}>{step.text}</span>
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={t('calendar.campaign.removeStep', locale)} onClick={() => drop(step)}>
-                <Trash2 aria-hidden="true" />
-              </Button>
+              {canChange && (
+                <Button type="button" variant="ghost" size="icon-sm" aria-label={t('calendar.campaign.removeStep', locale)} onClick={() => drop(step)}>
+                  <Trash2 aria-hidden="true" />
+                </Button>
+              )}
             </li>
           ))}
         </ul>
       )}
-      {steps.length < LIMITS.campaignSteps && (
+      {canAdd && steps.length < LIMITS.campaignSteps && (
         <form onSubmit={add} className="flex items-center gap-2">
           <Input id={`${id}-step`} aria-label={t('campaign.addStep', locale)} value={text} onValueChange={setText} maxLength={LIMITS.campaignStep} autoComplete="off" />
           <Button type="submit" variant="outline" disabled={busy || text.trim() === ''}>{t('calendar.add', locale)}</Button>

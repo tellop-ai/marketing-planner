@@ -12,11 +12,10 @@
  * started while four wait is refused, and the page shows the records as
  * unreadable). The local store has none of these, so
  * `measured` runs `work` as inside Tellop: the route's hook runs each call's
- * steps on the local store's own client (never by switching
- * `TELLOP_INTERNAL_RECORDS` off for a while, which would let a call started
- * meanwhile by `Promise.all` reach the store uncounted), and notes each
- * call's size and how many calls were unanswered when it started (itself
- * included). `bounded` then asserts every bound.
+ * steps on the local store's own client (a batch of several through
+ * `localBatch`, all kept or none), and notes each call's size and how many
+ * calls were unanswered when it started (itself included). `bounded` then
+ * asserts every bound.
  *
  * When `MP_RECORDS_DUMP` names a file, each step of each measured call is
  * appended to it as one JSON line `{ call, model, action, args, value }`
@@ -27,6 +26,8 @@
 import assert from 'node:assert/strict';
 import { appendFileSync } from 'node:fs';
 import process from 'node:process';
+
+import { modelBatch } from '../lib/data/index.js';
 
 export const BOUNDS = Object.freeze({ steps: 32, rows: 256, list: 256, values: 2048, bytes: 256 * 1024, args: 1024 * 1024, calls: 16, inFlight: 4 });
 
@@ -47,6 +48,30 @@ export function longestList(value) {
   if (Array.isArray(value)) return Math.max(value.length, ...value.map(longestList));
   if (value !== null && typeof value === 'object') return Math.max(0, ...Object.values(value).map(longestList));
   return 0;
+}
+
+/**
+ * A batch of several steps on the local store, all kept or none, as Tellop's
+ * records route keeps a batch: through the kit's own `modelBatch` as it runs
+ * outside Tellop (`lib/data/index.js`, the one place that opens the local
+ * store's batch), so no check names the records client's batch call itself
+ * (Tellop's online check stops an app whose code names it, its tests
+ * included). A hook runs while `TELLOP_INTERNAL_RECORDS` is on, which would
+ * send `modelBatch` back to the hook, so it is off only while the call
+ * starts: `modelBatch` picks the local store before its first wait, and no
+ * other code runs in between, so no call started by `Promise.all` can reach
+ * the store uncounted.
+ *
+ * @param {Array<{ model: string, action: string, args?: unknown }>} steps
+ */
+export function localBatch(steps) {
+  const prior = process.env.TELLOP_INTERNAL_RECORDS;
+  delete process.env.TELLOP_INTERNAL_RECORDS;
+  try {
+    return modelBatch(steps);
+  } finally {
+    if (prior !== undefined) process.env.TELLOP_INTERNAL_RECORDS = prior;
+  }
 }
 
 /** One step on a records client, as the route runs it. */
@@ -77,13 +102,7 @@ export async function measured(work) {
     try {
       // One turn of the event loop first, as a call to Tellop's records channel takes, so calls started together overlap.
       await new Promise((resolve) => setImmediate(resolve));
-      values = steps.length === 1
-        ? [await run(store.client, steps[0])]
-        : await store.client.$transaction(async (records) => {
-          const answers = [];
-          for (const step of steps) answers.push(await run(records, step));
-          return answers;
-        });
+      values = steps.length === 1 ? [await run(store.client, steps[0])] : await localBatch(steps);
     } finally {
       waiting -= 1;
     }

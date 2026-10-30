@@ -20,6 +20,7 @@ import { LIMITS } from '../../lib/plan/limits.js';
 
 import { dateOf, dayOf } from './format.js';
 import { colourOf } from './rules.js';
+import { useRights } from '../rights.jsx';
 import { sendUnconfirmed } from '../send.js';
 import { ThemeDot } from './tiles.jsx';
 
@@ -28,12 +29,15 @@ const CHIP = 'h-8 max-w-full gap-2 rounded-4xl bg-card px-3 font-normal ring-1 r
 /**
  * The ideas row under the month, as drawn: the newest ideas (posts with no
  * day) as chips with their theme's dot. A chip asks for a day with the kit's
- * calendar and moves the idea onto it; `+` adds an idea.
+ * calendar and moves the idea onto it; `+` adds an idea. Who is here
+ * (`useRights`): `+` only for a person who may add; for a person who may not
+ * change an idea, its chip opens the idea instead of moving it.
  *
  * @param {{ locale: string, month: string, ideas: Array<{ id: number, name: string, themeId: number | null }>, more: boolean,
  *   themes: Array<{ id: number, name: string, colour: number }>, colours: Map<number, number> }} props
  */
 export function IdeasRow({ locale, month, ideas, more, themes, colours }) {
+  const { add, change } = useRights();
   const [adding, setAdding] = useState(false);
   return (
     <div data-print-hidden className="flex flex-wrap items-center gap-2">
@@ -41,18 +45,27 @@ export function IdeasRow({ locale, month, ideas, more, themes, colours }) {
         <Lightbulb aria-hidden="true" className="size-4 text-muted-foreground" />
         {t('menu.ideas', locale)}
       </span>
-      {ideas.map((idea) => (
-        <IdeaChip key={idea.id} locale={locale} month={month} idea={idea} colour={colourOf(idea.themeId, colours)} />
-      ))}
+      {ideas.map((idea) => (change
+        ? <IdeaChip key={idea.id} locale={locale} month={month} idea={idea} colour={colourOf(idea.themeId, colours)} />
+        : (
+          <Link key={idea.id} href={`/posts/${idea.id}`} className={cn(buttonVariants({ variant: 'ghost' }), CHIP)}>
+            <ThemeDot colour={colourOf(idea.themeId, colours)} />
+            <span className="truncate">{idea.name || t('post.untitled', locale)}</span>
+          </Link>
+        )))}
       {more && (
         <Link href="/ideas" className={cn(buttonVariants({ variant: 'ghost' }), 'text-muted-foreground')}>
           {t('calendar.ideas.all', locale)}
         </Link>
       )}
-      <Button type="button" variant="ghost" size="icon" aria-label={t('calendar.ideas.add', locale)} onClick={() => setAdding(true)}>
-        <Plus aria-hidden="true" />
-      </Button>
-      <AddIdeaDialog locale={locale} open={adding} onOpenChange={setAdding} themes={themes} />
+      {add && (
+        <>
+          <Button type="button" variant="ghost" size="icon" aria-label={t('calendar.ideas.add', locale)} onClick={() => setAdding(true)}>
+            <Plus aria-hidden="true" />
+          </Button>
+          <AddIdeaDialog locale={locale} open={adding} onOpenChange={setAdding} themes={themes} />
+        </>
+      )}
     </div>
   );
 }

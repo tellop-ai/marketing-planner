@@ -38,7 +38,7 @@ const { NETWORK_KEYS } = await import('../lib/plan/networks.js');
 const { SHAPE_KEYS, SHAPES } = await import('../lib/plan/shapes.js');
 const { addDays, addMonths, daysInMonth, monthOf, todayCivil } = await import('../lib/plan/days.js');
 const { CONTENT_END, CONTENT_START } = await import('../lib/plan/ai-words.js');
-const { bounded, measured, mostInFlight } = await import('./records-bounds.mjs');
+const { bounded, localBatch, measured, mostInFlight } = await import('./records-bounds.mjs');
 
 after(async () => {
   await closeStorage();
@@ -84,11 +84,7 @@ async function withFailingCalls(fails, work) {
   globalThis[ACTION] = async (steps) => {
     if (fails(steps)) throw new Error('records-delivery-uncertain');
     if (steps.length === 1) return [await run(store.client, steps[0])];
-    return store.client.$transaction(async (records) => {
-      const answers = [];
-      for (const step of steps) answers.push(await run(records, step));
-      return answers;
-    });
+    return localBatch(steps);
   };
   const prior = process.env.TELLOP_INTERNAL_RECORDS;
   process.env.TELLOP_INTERNAL_RECORDS = '1';

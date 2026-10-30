@@ -25,12 +25,15 @@ import { mixWordsKey, monthAddress, weekAddress } from './rules.js';
  * holds no post (`fileRest`, a words key) and while its file is being made.
  * `mix` (`mixOf` in `rules.js`): when more than one in four of the month's
  * posts sell, one quiet line under the top line says so; none otherwise.
+ * `canAdd`: Fill my month, Add to my calendar (it keeps the file it hands
+ * over) and New campaign are drawn only for a person who may add; a Viewer
+ * keeps the month, the week and Print.
  *
  * @param {{ locale: string, today: string, view: { kind: 'month' | 'week', month: string, day?: string, from: string, to: string },
  *   onFill: () => void, onNewCampaign: () => void, onAddToCalendar: () => void, fileRest: string | null, fileMaking?: boolean,
- *   mix?: { sells: number, of: number } | null }} props
+ *   mix?: { sells: number, of: number } | null, canAdd?: boolean }} props
  */
-export function CalendarHeader({ locale, today, view, onFill, onNewCampaign, onAddToCalendar, fileRest, fileMaking = false, mix = null }) {
+export function CalendarHeader({ locale, today, view, onFill, onNewCampaign, onAddToCalendar, fileRest, fileMaking = false, mix = null, canAdd = false }) {
   usePrintLight();
   const week = view.kind === 'week';
   const title = week ? weekTitle(view.from, view.to, locale) : formatMonth(view.month, locale);
@@ -68,10 +71,12 @@ export function CalendarHeader({ locale, today, view, onFill, onNewCampaign, onA
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <Button type="button" variant="secondary" onClick={onFill}>
-          <Sparkles aria-hidden="true" />
-          {t('calendar.fill', locale)}
-        </Button>
+        {canAdd && (
+          <Button type="button" variant="secondary" onClick={onFill}>
+            <Sparkles aria-hidden="true" />
+            {t('calendar.fill', locale)}
+          </Button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon" aria-label={t('calendar.menu', locale)} />}>
             <Ellipsis aria-hidden="true" />
@@ -81,17 +86,21 @@ export function CalendarHeader({ locale, today, view, onFill, onNewCampaign, onA
               <Printer aria-hidden="true" />
               {t(week ? 'calendar.printWeek' : 'calendar.printMonth', locale)}
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={fileRest !== null || fileMaking} onClick={onAddToCalendar}>
-              <CalendarPlus aria-hidden="true" />
-              <span className="flex min-w-0 flex-col">
-                <span>{t('calendar.export.add', locale)}</span>
-                {fileRest !== null && <span className="max-w-56 text-xs text-muted-foreground">{t(fileRest, locale)}</span>}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onNewCampaign}>
-              <Flag aria-hidden="true" />
-              {t('campaign.new', locale)}
-            </DropdownMenuItem>
+            {canAdd && (
+              <DropdownMenuItem disabled={fileRest !== null || fileMaking} onClick={onAddToCalendar}>
+                <CalendarPlus aria-hidden="true" />
+                <span className="flex min-w-0 flex-col">
+                  <span>{t('calendar.export.add', locale)}</span>
+                  {fileRest !== null && <span className="max-w-56 text-xs text-muted-foreground">{t(fileRest, locale)}</span>}
+                </span>
+              </DropdownMenuItem>
+            )}
+            {canAdd && (
+              <DropdownMenuItem onClick={onNewCampaign}>
+                <Flag aria-hidden="true" />
+                {t('campaign.new', locale)}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -20,6 +20,7 @@ import { t } from '../../lib/i18n/index.js';
 import { addDays } from '../../lib/plan/days.js';
 
 import { ENQUIRY_STATUSES, channelChoices, channelLabel, statusLabel } from './choices.js';
+import { useRights } from '../rights.jsx';
 import { sendUnconfirmed } from '../send.js';
 import { amountOf } from './amount.js';
 
@@ -63,8 +64,16 @@ export function EnquiryDialog({ open, onOpenChange, enquiry, locale, today, post
   );
 }
 
+/**
+ * The form inside the window. Who is here (`useRights`): a person who may not
+ * change a kept person (`readOnly`) reads their fields, unchangeable, with no
+ * Save or Remove; a Member may still add them to Contacts (without saving the
+ * form first, which would change them).
+ */
 function EnquiryForm({ enquiry, locale, today, posts, networks, onDone }) {
   const router = useRouter();
+  const { add: canAdd, change: canChange } = useRights();
+  const readOnly = Boolean(enquiry) && !canChange;
   const [name, setName] = useState(enquiry?.name ?? '');
   const [contact, setContact] = useState(enquiry?.contact ?? '');
   const [channel, setChannel] = useState(enquiry?.channel ?? (networks[0] ?? 'other'));
@@ -119,7 +128,7 @@ function EnquiryForm({ enquiry, locale, today, posts, networks, onDone }) {
    * number or address opens instead).
    */
   async function addToContacts() {
-    if (!(await keep())) return;
+    if (!readOnly && !(await keep())) return;
     setBusy(true);
     const added = await sendUnconfirmed('/api/contacts', 'POST', { enquiryId: enquiry.id });
     if (!added.ok || typeof added.value?.contact?.id !== 'number') {
@@ -146,7 +155,7 @@ function EnquiryForm({ enquiry, locale, today, posts, networks, onDone }) {
 
   return (
     <form onSubmit={save} className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="-mx-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
+      <fieldset disabled={readOnly} className="-mx-4 flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
         <Field>
           <FieldLabel htmlFor={id('name')}>{t('customers.field.name', locale)}</FieldLabel>
           <Input id={id('name')} value={name} onValueChange={setName} required maxLength={80} autoComplete="off" />
@@ -186,6 +195,7 @@ function EnquiryForm({ enquiry, locale, today, posts, networks, onDone }) {
             label={t('customers.field.status', locale)}
             value={status}
             onValueChange={setStatus}
+            disabled={readOnly}
             options={ENQUIRY_STATUSES.map((value) => ({ value, label: statusLabel(value, locale) }))}
           />
         </Field>
@@ -241,29 +251,31 @@ function EnquiryForm({ enquiry, locale, today, posts, networks, onDone }) {
           <FieldLabel htmlFor={id('notes')}>{t('customers.field.notes', locale)}</FieldLabel>
           <Textarea id={id('notes')} value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} />
         </Field>
-      </div>
+      </fieldset>
       {problem && <p role="alert" className="text-sm text-destructive">{t(problem, locale)}</p>}
-      <DialogFooter className="flex-wrap">
-        {enquiry && !removing && (
-          <Button type="button" variant="ghost" className="sm:mr-auto" disabled={busy} onClick={() => setRemoving(true)}>
-            {t('customers.remove', locale)}
-          </Button>
-        )}
-        {enquiry && !removing && (
-          <Button type="button" variant="outline" disabled={busy} onClick={addToContacts}>
-            <UserPlus aria-hidden="true" />
-            {t('contacts.fromEnquiry', locale)}
-          </Button>
-        )}
-        {enquiry && removing && (
-          <div className="flex flex-wrap items-center gap-2 sm:mr-auto">
-            <span className="text-sm">{t('customers.removeAsk', locale)}</span>
-            <Button type="button" variant="destructive" disabled={busy} onClick={remove}>{t('customers.remove', locale)}</Button>
-            <Button type="button" variant="ghost" disabled={busy} onClick={() => setRemoving(false)}>{t('customers.keep', locale)}</Button>
-          </div>
-        )}
-        <Button type="submit" disabled={busy || removing}>{t('customers.save', locale)}</Button>
-      </DialogFooter>
+      {(!readOnly || canAdd) && (
+        <DialogFooter className="flex-wrap">
+          {enquiry && !removing && canChange && (
+            <Button type="button" variant="ghost" className="sm:mr-auto" disabled={busy} onClick={() => setRemoving(true)}>
+              {t('customers.remove', locale)}
+            </Button>
+          )}
+          {enquiry && !removing && canAdd && (
+            <Button type="button" variant="outline" disabled={busy} onClick={addToContacts}>
+              <UserPlus aria-hidden="true" />
+              {t('contacts.fromEnquiry', locale)}
+            </Button>
+          )}
+          {enquiry && removing && (
+            <div className="flex flex-wrap items-center gap-2 sm:mr-auto">
+              <span className="text-sm">{t('customers.removeAsk', locale)}</span>
+              <Button type="button" variant="destructive" disabled={busy} onClick={remove}>{t('customers.remove', locale)}</Button>
+              <Button type="button" variant="ghost" disabled={busy} onClick={() => setRemoving(false)}>{t('customers.keep', locale)}</Button>
+            </div>
+          )}
+          {!readOnly && <Button type="submit" disabled={busy || removing}>{t('customers.save', locale)}</Button>}
+        </DialogFooter>
+      )}
     </form>
   );
 }

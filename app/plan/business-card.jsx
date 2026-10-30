@@ -15,6 +15,7 @@ import { appendPicture } from '../../lib/send-file.js';
 
 import { refusedHere, useAutoSave } from './auto-save.js';
 import { ResultLine } from './result-line.jsx';
+import { useRights } from '../rights.jsx';
 import { sendForm } from '../send.js';
 
 const PLAN_ADDRESS = '/api/plan';
@@ -41,6 +42,26 @@ function logoValue(tag) {
 }
 
 /**
+ * The kept logo, to look at only (a person who may not change My plan): the
+ * picture, or one line when there is none or this browser cannot show it.
+ *
+ * @param {{ address: string | null, locale: string }} props
+ */
+function LogoToRead({ address, locale }) {
+  const [broken, setBroken] = useState(false);
+  if (address === null) return <p className="text-sm text-muted-foreground">{t('plan.business.noLogo', locale)}</p>;
+  if (broken) return <p className="text-sm text-muted-foreground">{t('plan.business.logoUnshown', locale)}</p>;
+  return (
+    <img
+      src={address}
+      alt={t('plan.business.logo', locale)}
+      onError={() => setBroken(true)}
+      className="aspect-4/3 w-full max-w-64 rounded-lg border border-border bg-muted object-cover"
+    />
+  );
+}
+
+/**
  * Your business: its name, what it sells, who it is for, the goal for now, how
  * it sounds, how its pictures look, and its logo. Each field saves by itself:
  * words when the person stops typing or leaves the field, the logo as soon as
@@ -52,6 +73,7 @@ function logoValue(tag) {
  */
 export function BusinessCard({ locale, profile }) {
   const router = useRouter();
+  const { change: canChange } = useRights();
   const [words, setWords] = useState(() => wordsOf(profile));
   const [logo, setLogo] = useState(() => logoValue(profile.logo));
   const [logoPending, setLogoPending] = useState(false);
@@ -114,13 +136,17 @@ export function BusinessCard({ locale, profile }) {
         })}
         <Field className="sm:col-span-2">
           <FieldTitle>{t('plan.business.logo', locale)}</FieldTitle>
-          <PictureField
-            value={logo}
-            locale={locale}
-            alt={t('plan.business.logo', locale)}
-            disabled={logoPending}
-            onChange={(next) => void keepLogo(next)}
-          />
+          {canChange ? (
+            <PictureField
+              value={logo}
+              locale={locale}
+              alt={t('plan.business.logo', locale)}
+              disabled={logoPending}
+              onChange={(next) => void keepLogo(next)}
+            />
+          ) : (
+            <LogoToRead address={logo?.saved ?? null} locale={locale} />
+          )}
         </Field>
         <ResultLine locale={locale} result={result} />
       </CardContent>

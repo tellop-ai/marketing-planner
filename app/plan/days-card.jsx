@@ -14,12 +14,14 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Switch } from '@/components/ui/switch';
 import { StatusRow } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/utils';
 
 import { formatDate } from '../../lib/format.js';
 import { t } from '../../lib/i18n/index.js';
 import { LIMITS } from '../../lib/plan/limits.js';
 
 import { ResultLine } from './result-line.jsx';
+import { useRights } from '../rights.jsx';
 import { send } from '../send.js';
 
 const PLACES = Object.freeze(['tr', 'world', 'both']);
@@ -59,6 +61,8 @@ function nextDate(day, today) {
  *   builtInDays: BuiltInDay[], today: string, lastMovingYear: number, movingOutdated: boolean }} props
  */
 export function DaysCard({ locale, profile, ownDays: firstDays, builtInDays, today, lastMovingYear, movingOutdated }) {
+  // A person who may not change My plan reads which days show, the hidden ones and the own ones, with no press.
+  const { change: canChange } = useRights();
   const [showDays, setShowDays] = useState(profile.showDays);
   const [hidden, setHidden] = useState(() => dayList(profile.hiddenDays));
   const [ownDays, setOwnDays] = useState(firstDays);
@@ -121,6 +125,7 @@ export function DaysCard({ locale, profile, ownDays: firstDays, builtInDays, tod
   }
 
   const ordered = [...ownDays].sort((a, b) => nextDate(a, today).localeCompare(nextDate(b, today)) || a.id - b.id);
+  const hiddenKnown = hidden.filter((key) => known.has(key));
 
   return (
     <Card>
@@ -132,111 +137,123 @@ export function DaysCard({ locale, profile, ownDays: firstDays, builtInDays, tod
           label={t('plan.days.title', locale)}
           options={PLACES.map((place) => ({ value: place, label: t(`plan.days.${place}`, locale) }))}
           value={showDays}
-          disabled={pending}
+          disabled={pending || !canChange}
           onValueChange={(place) => saveProfile({ showDays: place })}
         />
         {movingOutdated && <p className="text-sm text-muted-foreground">{t('plan.days.movingOutdated', locale, { year: String(lastMovingYear) })}</p>}
 
-        <div className="flex flex-col gap-2">
-          <FieldTitle>{t('plan.days.hidden', locale)}</FieldTitle>
-          {hidden.filter((key) => known.has(key)).length > 0 && (
-            <ul className="flex flex-wrap gap-2">
-              {hidden.filter((key) => known.has(key)).map((key) => (
-                <li key={key} className="inline-flex h-8 items-center gap-1 rounded-4xl bg-muted pr-1 pl-3 text-sm">
-                  {t(known.get(key).nameKey, locale)}
-                  <Button type="button" variant="ghost" size="xs" disabled={pending} onClick={() => saveProfile({ hiddenDays: hidden.filter((item) => item !== key) })}>
-                    {t('plan.days.showAgain', locale)}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {shown.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <NativeSelect
-                aria-label={t('plan.days.hideWhich', locale)}
-                value={toHide}
-                disabled={pending}
-                className="min-w-0 max-w-full"
-                onChange={(event) => setToHide(event.target.value)}
-              >
-                <NativeSelectOption value="">{t('plan.days.hideWhich', locale)}</NativeSelectOption>
-                {shown.map((day) => (
-                  <NativeSelectOption key={day.key} value={day.key}>{t(day.nameKey, locale)}</NativeSelectOption>
+        {(canChange || hiddenKnown.length > 0) && (
+          <div className="flex flex-col gap-2">
+            <FieldTitle>{t('plan.days.hidden', locale)}</FieldTitle>
+            {hiddenKnown.length > 0 && (
+              <ul className="flex flex-wrap gap-2">
+                {hiddenKnown.map((key) => (
+                  <li key={key} className={cn('inline-flex h-8 items-center gap-1 rounded-4xl bg-muted pl-3 text-sm', canChange ? 'pr-1' : 'pr-3')}>
+                    {t(known.get(key).nameKey, locale)}
+                    {canChange && (
+                      <Button type="button" variant="ghost" size="xs" disabled={pending} onClick={() => saveProfile({ hiddenDays: hidden.filter((item) => item !== key) })}>
+                        {t('plan.days.showAgain', locale)}
+                      </Button>
+                    )}
+                  </li>
                 ))}
-              </NativeSelect>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={pending || toHide === ''}
-                onClick={async () => {
-                  if (await saveProfile({ hiddenDays: [...hidden, toHide] })) setToHide('');
-                }}
-              >
-                <EyeOff aria-hidden="true" />
-                {t('plan.days.hide', locale)}
-              </Button>
-            </div>
-          )}
-        </div>
+              </ul>
+            )}
+            {canChange && shown.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <NativeSelect
+                  aria-label={t('plan.days.hideWhich', locale)}
+                  value={toHide}
+                  disabled={pending}
+                  className="min-w-0 max-w-full"
+                  onChange={(event) => setToHide(event.target.value)}
+                >
+                  <NativeSelectOption value="">{t('plan.days.hideWhich', locale)}</NativeSelectOption>
+                  {shown.map((day) => (
+                    <NativeSelectOption key={day.key} value={day.key}>{t(day.nameKey, locale)}</NativeSelectOption>
+                  ))}
+                </NativeSelect>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending || toHide === ''}
+                  onClick={async () => {
+                    if (await saveProfile({ hiddenDays: [...hidden, toHide] })) setToHide('');
+                  }}
+                >
+                  <EyeOff aria-hidden="true" />
+                  {t('plan.days.hide', locale)}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
-        <div className="flex flex-col gap-2">
-          <FieldTitle>{t('plan.days.own', locale)}</FieldTitle>
-          {ordered.length > 0 && (
-            <ul className="flex flex-col divide-y divide-border rounded-lg ring-1 ring-foreground/10">
-              {ordered.map((day) => (
-                <li key={day.id} className="flex min-w-0 items-center gap-3 px-3 py-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{day.name}</div>
-                    <div className="text-xs text-muted-foreground">{formatDate(nextDate(day, today), locale)}</div>
-                  </div>
-                  {day.yearly && <Badge variant="secondary">{t('plan.days.everyYear', locale)}</Badge>}
-                  <Button type="button" variant="ghost" size="icon-sm" disabled={pending} aria-label={t('plan.remove', locale)} onClick={() => removeDay(day)}>
-                    <X aria-hidden="true" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-            <Field>
-              <FieldLabel htmlFor="plan-own-day-name">{t('plan.days.ownName', locale)}</FieldLabel>
-              <Input
-                id="plan-own-day-name"
-                value={name}
-                maxLength={LIMITS.name}
-                aria-invalid={result?.field === 'name' || undefined}
-                onChange={(event) => {
-                  setName(event.target.value);
-                  setResult(null);
-                }}
-              />
-            </Field>
-            <DateField
-              value={date}
-              resetKey={dateReset}
-              label={t('plan.days.ownDate', locale)}
-              words={{ choose: t('plan.days.chooseDay', locale), invalid: t('plan.days.dateInvalid', locale), failed: t('plan.days.dateInvalid', locale), saved: '' }}
-              calendarLocale={locale === 'tr' ? tr : enUS}
-              className="grid gap-2 text-sm [&>label]:text-sm [&>label]:font-medium [&>label]:text-foreground"
-              onSave={(picked) => {
-                setDate(picked);
-                setResult(null);
-                return picked;
-              }}
-            />
+        {(canChange || ordered.length > 0) && (
+          <div className="flex flex-col gap-2">
+            <FieldTitle>{t('plan.days.own', locale)}</FieldTitle>
+            {ordered.length > 0 && (
+              <ul className="flex flex-col divide-y divide-border rounded-lg ring-1 ring-foreground/10">
+                {ordered.map((day) => (
+                  <li key={day.id} className="flex min-w-0 items-center gap-3 px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{day.name}</div>
+                      <div className="text-xs text-muted-foreground">{formatDate(nextDate(day, today), locale)}</div>
+                    </div>
+                    {day.yearly && <Badge variant="secondary">{t('plan.days.everyYear', locale)}</Badge>}
+                    {canChange && (
+                      <Button type="button" variant="ghost" size="icon-sm" disabled={pending} aria-label={t('plan.remove', locale)} onClick={() => removeDay(day)}>
+                        <X aria-hidden="true" />
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canChange && (
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                <Field>
+                  <FieldLabel htmlFor="plan-own-day-name">{t('plan.days.ownName', locale)}</FieldLabel>
+                  <Input
+                    id="plan-own-day-name"
+                    value={name}
+                    maxLength={LIMITS.name}
+                    aria-invalid={result?.field === 'name' || undefined}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      setResult(null);
+                    }}
+                  />
+                </Field>
+                <DateField
+                  value={date}
+                  resetKey={dateReset}
+                  label={t('plan.days.ownDate', locale)}
+                  words={{ choose: t('plan.days.chooseDay', locale), invalid: t('plan.days.dateInvalid', locale), failed: t('plan.days.dateInvalid', locale), saved: '' }}
+                  calendarLocale={locale === 'tr' ? tr : enUS}
+                  className="grid gap-2 text-sm [&>label]:text-sm [&>label]:font-medium [&>label]:text-foreground"
+                  onSave={(picked) => {
+                    setDate(picked);
+                    setResult(null);
+                    return picked;
+                  }}
+                />
+              </div>
+            )}
+            {canChange && (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Switch id="plan-own-day-yearly" checked={yearly} onCheckedChange={(next) => setYearly(next === true)} />
+                  <Label htmlFor="plan-own-day-yearly">{t('plan.days.everyYear', locale)}</Label>
+                </div>
+                <Button type="button" variant="outline" disabled={pending || name.trim() === '' || date === ''} onClick={addDay}>
+                  <Plus aria-hidden="true" />
+                  {t('plan.days.add', locale)}
+                </Button>
+              </div>
+            )}
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Switch id="plan-own-day-yearly" checked={yearly} onCheckedChange={(next) => setYearly(next === true)} />
-              <Label htmlFor="plan-own-day-yearly">{t('plan.days.everyYear', locale)}</Label>
-            </div>
-            <Button type="button" variant="outline" disabled={pending || name.trim() === '' || date === ''} onClick={addDay}>
-              <Plus aria-hidden="true" />
-              {t('plan.days.add', locale)}
-            </Button>
-          </div>
-        </div>
+        )}
         <ResultLine locale={locale} result={result} />
       </CardContent>
     </Card>

@@ -33,7 +33,7 @@ const { countFor } = await import('../lib/plan/count.js');
 const { sharedWords } = await import('../lib/plan/share.js');
 const { LIMITS } = await import('../lib/plan/limits.js');
 const { NETWORK_KEYS, networkByKey } = await import('../lib/plan/networks.js');
-const { closeStorage, modelAction, modelBatch } = await import('../lib/data/index.js');
+const { DataError, closeStorage, modelAction, modelBatch } = await import('../lib/data/index.js');
 const { keepFile } = await import('../lib/data/files.js');
 const { AiProblem } = await import('../lib/ai.js');
 const posts = await import('../lib/data/posts.js');
@@ -400,12 +400,15 @@ test('a picture answer is read strictly, and every picture request carries the f
 });
 
 test('an AI problem answers its own words with the status it deserves', () => {
-  const expect = { 'meter-exhausted': 402, busy: 429, 'paused-by-person': 403, 'not-signed-in': 403, 'provider-declined': 422, 'picture-not-drawn': 422, room: 507, offline: 503, 'something-new': 503 };
+  const expect = { 'meter-exhausted': 402, busy: 429, dailyLimit: 429, appPaused: 403, 'paused-by-person': 403, 'not-signed-in': 403, 'provider-declined': 422, 'picture-not-drawn': 422, room: 507, offline: 503, 'something-new': 503 };
   for (const [code, status] of Object.entries(expect)) {
     const problem = new AiProblem(code);
     assert.deepEqual(words.aiFailure(problem), { problem: problem.wordsKey, status }, code);
   }
   assert.deepEqual(words.aiFailure(new Error('boom')), { problem: 'ai.unavailable', status: 503 });
+  // A refusal of what was kept on the way keeps its own words: a change this person may not make says so.
+  assert.deepEqual(words.aiFailure(new DataError('error.cannotChange')), { problem: 'error.cannotChange', status: 403 });
+  assert.deepEqual(words.aiFailure(new DataError('error.fileRoom')), { problem: 'error.fileRoom', status: 400 });
   assert.equal(words.ownDayId('own-12'), 12);
   assert.equal(words.ownDayId('own-0'), null);
   assert.equal(words.ownDayId('mothersDay'), null);

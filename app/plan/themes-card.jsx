@@ -24,6 +24,7 @@ import { LIMITS } from '../../lib/plan/limits.js';
 import { refusedHere, useAutoSave } from './auto-save.js';
 import { ConfirmRemove } from './confirm-remove.jsx';
 import { ResultLine } from './result-line.jsx';
+import { useRights } from '../rights.jsx';
 import { send } from '../send.js';
 import { THEME_BACKGROUNDS } from '../theme-colours.js';
 
@@ -88,11 +89,13 @@ function HashtagsField({ locale, value, invalid, sets, className, onChange, onBl
  * leaves the field (an empty name waits until it is left, where it is
  * refused and the line says why), a hashtag set and Sells at once. A colour,
  * a move, Add and Remove save on their own press. One quiet line says "Saved"
- * or why not.
+ * or why not. A person who may not change My plan (`useRights`) reads each
+ * theme (its colour as a dot, its fields unchangeable) with no press.
  *
  * @param {{ locale: string, themes: Theme[], hashtagSets?: HashtagSet[] }} props
  */
 export function ThemesCard({ locale, themes: first, hashtagSets = [] }) {
+  const { change: canChange } = useRights();
   const [themes, setThemes] = useState(first);
   const [drafts, setDrafts] = useState(() => Object.fromEntries(first.map((theme) => [theme.id, draftOf(theme)])));
   const [newName, setNewName] = useState('');
@@ -203,23 +206,30 @@ export function ThemesCard({ locale, themes: first, hashtagSets = [] }) {
             const sellsId = `theme-${theme.id}-sells`;
             return (
               <li key={theme.id} className={`${ROW} border-b border-border pb-3 last:border-b-0 last:pb-0 lg:border-b-0 lg:pb-0`}>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={<Button type="button" variant="ghost" size="icon-sm" disabled={pending} aria-label={t('theme.colour', locale, { name: theme.name })} />}
-                  >
+                {!canChange && (
+                  <span className="inline-flex size-7 items-center justify-center">
                     <Dot colour={theme.colour} className="size-3.5" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-auto">
-                    <DropdownMenuRadioGroup value={theme.colour} onValueChange={(value) => { if (value !== theme.colour) void paint(theme, value); }}>
-                      {THEME_BACKGROUNDS.map((_, colour) => (
-                        <DropdownMenuRadioItem key={colour} value={colour}>
-                          <Dot colour={colour} />
-                          {t('theme.colourNumber', locale, { number: String(colour + 1) })}
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </span>
+                )}
+                {canChange && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={<Button type="button" variant="ghost" size="icon-sm" disabled={pending} aria-label={t('theme.colour', locale, { name: theme.name })} />}
+                    >
+                      <Dot colour={theme.colour} className="size-3.5" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-auto">
+                      <DropdownMenuRadioGroup value={theme.colour} onValueChange={(value) => { if (value !== theme.colour) void paint(theme, value); }}>
+                        {THEME_BACKGROUNDS.map((_, colour) => (
+                          <DropdownMenuRadioItem key={colour} value={colour}>
+                            <Dot colour={colour} />
+                            {t('theme.colourNumber', locale, { number: String(colour + 1) })}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
                 <Input
                   value={draft.name}
                   aria-label={t('theme.name', locale)}
@@ -229,25 +239,29 @@ export function ThemesCard({ locale, themes: first, hashtagSets = [] }) {
                   onBlur={() => queue.flush()}
                 />
                 <div className="order-3 flex items-center justify-end gap-0.5 lg:order-6 lg:w-24">
-                  <Button type="button" variant="ghost" size="icon-sm" disabled={pending || index === 0} aria-label={t('theme.up', locale)} onClick={() => move(theme, 'up')}>
-                    <ArrowUp aria-hidden="true" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="icon-sm" disabled={pending || index === themes.length - 1} aria-label={t('theme.down', locale)} onClick={() => move(theme, 'down')}>
-                    <ArrowDown aria-hidden="true" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={pending}
-                    aria-label={t('plan.remove', locale)}
-                    onClick={() => {
-                      setRemoveProblem(null);
-                      setRemoving(theme);
-                    }}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </Button>
+                  {canChange && (
+                    <>
+                      <Button type="button" variant="ghost" size="icon-sm" disabled={pending || index === 0} aria-label={t('theme.up', locale)} onClick={() => move(theme, 'up')}>
+                        <ArrowUp aria-hidden="true" />
+                      </Button>
+                      <Button type="button" variant="ghost" size="icon-sm" disabled={pending || index === themes.length - 1} aria-label={t('theme.down', locale)} onClick={() => move(theme, 'down')}>
+                        <ArrowDown aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={pending}
+                        aria-label={t('plan.remove', locale)}
+                        onClick={() => {
+                          setRemoveProblem(null);
+                          setRemoving(theme);
+                        }}
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </Button>
+                    </>
+                  )}
                 </div>
                 <Input
                   value={draft.about}
@@ -262,7 +276,7 @@ export function ThemesCard({ locale, themes: first, hashtagSets = [] }) {
                   locale={locale}
                   value={draft.hashtags}
                   invalid={invalid('hashtags')}
-                  sets={hashtagSets}
+                  sets={canChange ? hashtagSets : []}
                   className="order-5 col-span-2 lg:order-4 lg:col-span-1"
                   onChange={edit('hashtags')}
                   onBlur={() => queue.flush()}
@@ -273,6 +287,7 @@ export function ThemesCard({ locale, themes: first, hashtagSets = [] }) {
                     id={sellsId}
                     size="sm"
                     checked={draft.sells}
+                    disabled={!canChange}
                     aria-invalid={invalid('sells')}
                     onCheckedChange={(next) => put('sells', next === true, 'now')}
                   />
@@ -283,7 +298,8 @@ export function ThemesCard({ locale, themes: first, hashtagSets = [] }) {
           })}
         </ol>
         {themes.length > 0 && <p className="text-sm text-muted-foreground">{t('theme.sellsHint', locale)}</p>}
-        {themes.length < LIMITS.themes && (
+        {themes.length === 0 && !canChange && <p className="text-sm text-muted-foreground">{t('theme.noneYet', locale)}</p>}
+        {canChange && themes.length < LIMITS.themes && (
           <div className="flex flex-wrap items-center gap-2">
             <Input
               value={newName}

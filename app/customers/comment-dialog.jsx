@@ -18,6 +18,7 @@ import { pictureAddress } from '../../lib/pictures.js';
 import { appendPicture } from '../../lib/send-file.js';
 
 import { PERMISSIONS, channelLabel, permissionLabel, sourceChoices } from './choices.js';
+import { useRights } from '../rights.jsx';
 import { sendUnconfirmed } from '../send.js';
 
 const STARS = Object.freeze([1, 2, 3, 4, 5]);
@@ -52,7 +53,13 @@ export function CommentDialog({ open, onOpenChange, comment, locale, today, netw
   );
 }
 
+/**
+ * The form inside the window. A person who may not change a kept comment
+ * (`useRights`) reads it, unchangeable, with no Save or Remove.
+ */
 function CommentForm({ comment, locale, today, networks, onDone }) {
+  const { change: canChange } = useRights();
+  const readOnly = Boolean(comment) && !canChange;
   const [name, setName] = useState(comment?.name ?? '');
   const [text, setText] = useState(comment?.text ?? '');
   const [bestLine, setBestLine] = useState(comment?.bestLine ?? '');
@@ -114,7 +121,7 @@ function CommentForm({ comment, locale, today, networks, onDone }) {
 
   return (
     <form onSubmit={save} className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="-mx-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
+      <fieldset disabled={readOnly} className="-mx-4 flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
         <Field>
           <FieldLabel htmlFor={id('text')}>{t('comments.field.text', locale)}</FieldLabel>
           <Textarea id={id('text')} value={text} onChange={(event) => setText(event.target.value)} required rows={3} />
@@ -159,6 +166,7 @@ function CommentForm({ comment, locale, today, networks, onDone }) {
             label={t('comments.field.permission', locale)}
             value={permission}
             onValueChange={setPermission}
+            disabled={readOnly}
             options={PERMISSIONS.map((value) => ({ value, label: permissionLabel(value, locale) }))}
           />
         </Field>
@@ -166,27 +174,32 @@ function CommentForm({ comment, locale, today, networks, onDone }) {
           <FieldLabel htmlFor={id('note')}>{t('comments.field.permissionNote', locale)}</FieldLabel>
           <Input id={id('note')} value={permissionNote} onValueChange={setPermissionNote} autoComplete="off" />
         </Field>
-        <Field>
-          <span className="text-sm font-medium">{t('comments.field.screenshot', locale)}</span>
-          <PictureField value={picture} onChange={setPicture} locale={locale} alt={t('comments.field.screenshot', locale)} disabled={busy} />
-        </Field>
-      </div>
+        {/* To read only, the screenshot shows on the comment's own card (with its download where this browser cannot show it). */}
+        {!readOnly && (
+          <Field>
+            <span className="text-sm font-medium">{t('comments.field.screenshot', locale)}</span>
+            <PictureField value={picture} onChange={setPicture} locale={locale} alt={t('comments.field.screenshot', locale)} disabled={busy} />
+          </Field>
+        )}
+      </fieldset>
       {problem && <p role="alert" className="text-sm text-destructive">{t(problem, locale)}</p>}
-      <DialogFooter className="flex-wrap">
-        {comment && !removing && (
-          <Button type="button" variant="ghost" className="sm:mr-auto" disabled={busy} onClick={() => setRemoving(true)}>
-            {t('comments.remove', locale)}
-          </Button>
-        )}
-        {comment && removing && (
-          <div className="flex flex-wrap items-center gap-2 sm:mr-auto">
-            <span className="text-sm">{t('comments.removeAsk', locale)}</span>
-            <Button type="button" variant="destructive" disabled={busy} onClick={remove}>{t('comments.remove', locale)}</Button>
-            <Button type="button" variant="ghost" disabled={busy} onClick={() => setRemoving(false)}>{t('customers.keep', locale)}</Button>
-          </div>
-        )}
-        <Button type="submit" disabled={busy || removing}>{t('customers.save', locale)}</Button>
-      </DialogFooter>
+      {!readOnly && (
+        <DialogFooter className="flex-wrap">
+          {comment && !removing && (
+            <Button type="button" variant="ghost" className="sm:mr-auto" disabled={busy} onClick={() => setRemoving(true)}>
+              {t('comments.remove', locale)}
+            </Button>
+          )}
+          {comment && removing && (
+            <div className="flex flex-wrap items-center gap-2 sm:mr-auto">
+              <span className="text-sm">{t('comments.removeAsk', locale)}</span>
+              <Button type="button" variant="destructive" disabled={busy} onClick={remove}>{t('comments.remove', locale)}</Button>
+              <Button type="button" variant="ghost" disabled={busy} onClick={() => setRemoving(false)}>{t('customers.keep', locale)}</Button>
+            </div>
+          )}
+          <Button type="submit" disabled={busy || removing}>{t('customers.save', locale)}</Button>
+        </DialogFooter>
+      )}
     </form>
   );
 }

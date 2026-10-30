@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { t } from '../../lib/i18n/index.js';
 import { LIMITS } from '../../lib/plan/limits.js';
 import { ConfirmRemove } from '../plan/confirm-remove.jsx';
+import { useRights } from '../rights.jsx';
 import { send } from '../send.js';
 
 import { dotClass } from './groups.js';
@@ -29,12 +30,13 @@ import { FOLDED, NOTE_MOST, canSaveNote, noteThemeChoices, noteThemeOf, shownNot
 /**
  * One saved note: its words, its theme and its link's host (pressing it opens
  * the link in the browser; the app never reads the page), then Make it a post
- * idea, Edit and Remove.
+ * idea (only while `canAdd`), Edit and Remove (only while `canChange`).
  *
  * @param {{ note: Note, theme: Theme | null, locale: string, making: boolean, problem: string | null,
+ *   canAdd?: boolean, canChange?: boolean,
  *   onMake: (note: Note) => void, onEdit: (note: Note) => void, onRemove: (note: Note) => void }} props
  */
-export function InspirationCard({ note, theme, locale, making, problem, onMake, onEdit, onRemove }) {
+export function InspirationCard({ note, theme, locale, making, problem, canAdd = false, canChange = false, onMake, onEdit, onRemove }) {
   return (
     <li className="flex min-w-0 flex-col gap-2 rounded-xl border border-input bg-card p-3">
       {note.note !== '' && <p className="line-clamp-4 text-sm break-words whitespace-pre-line">{note.note}</p>}
@@ -60,34 +62,42 @@ export function InspirationCard({ note, theme, locale, making, problem, onMake, 
           )}
         </div>
       )}
-      <div className="mt-auto flex flex-wrap items-center gap-1">
-        <Button type="button" variant="outline" size="sm" disabled={making} onClick={() => onMake(note)}>
-          {making ? <Spinner aria-hidden="true" /> : <Lightbulb aria-hidden="true" />}
-          {t('inspiration.makePost', locale)}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="ml-auto text-muted-foreground"
-          aria-label={t('inspiration.edit', locale)}
-          disabled={making}
-          onClick={() => onEdit(note)}
-        >
-          <Pencil aria-hidden="true" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="text-muted-foreground"
-          aria-label={t('inspiration.remove', locale)}
-          disabled={making}
-          onClick={() => onRemove(note)}
-        >
-          <Trash2 aria-hidden="true" />
-        </Button>
-      </div>
+      {(canAdd || canChange) && (
+        <div className="mt-auto flex flex-wrap items-center gap-1">
+          {canAdd && (
+            <Button type="button" variant="outline" size="sm" disabled={making} onClick={() => onMake(note)}>
+              {making ? <Spinner aria-hidden="true" /> : <Lightbulb aria-hidden="true" />}
+              {t('inspiration.makePost', locale)}
+            </Button>
+          )}
+          {canChange && (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="ml-auto text-muted-foreground"
+                aria-label={t('inspiration.edit', locale)}
+                disabled={making}
+                onClick={() => onEdit(note)}
+              >
+                <Pencil aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground"
+                aria-label={t('inspiration.remove', locale)}
+                disabled={making}
+                onClick={() => onRemove(note)}
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </>
+          )}
+        </div>
+      )}
       {problem && <p role="alert" className="text-sm text-destructive">{t(problem, locale)}</p>}
     </li>
   );
@@ -196,11 +206,14 @@ export function NoteForm({ locale, note, themes, archivedThemes, onSaved }) {
  * first, the newest few shown until Show all. Add a note and Edit open a
  * window; Remove asks first; Make it a post idea makes an idea post from the
  * note (the note stays). What the app confirmed shows as one short line.
+ * Who is here (`useRights`): Add a note and Make it a post idea for a person
+ * who may add; Edit and Remove for one who may change.
  *
  * @param {{ locale: string, notes: Note[], full: boolean, themes: Theme[], archivedThemes: Theme[] }} props
  */
 export function InspirationSection({ locale, notes, full, themes, archivedThemes }) {
   const router = useRouter();
+  const { add: canAdd, change: canChange } = useRights();
   const titleId = useId();
   const [gone, setGone] = useState(() => new Set());
   const [showAll, setShowAll] = useState(false);
@@ -262,16 +275,18 @@ export function InspirationSection({ locale, notes, full, themes, archivedThemes
           <span className="truncate">{t('inspiration.title', locale)}</span>
           {kept.length > 0 && <span className="font-normal text-muted-foreground tabular-nums">{kept.length}</span>}
         </h2>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="ml-auto"
-          onClick={() => { setNotice(null); setMakeProblem(null); setEditing({ note: null }); }}
-        >
-          <Plus aria-hidden="true" />
-          {t('inspiration.add', locale)}
-        </Button>
+        {canAdd && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            onClick={() => { setNotice(null); setMakeProblem(null); setEditing({ note: null }); }}
+          >
+            <Plus aria-hidden="true" />
+            {t('inspiration.add', locale)}
+          </Button>
+        )}
       </div>
 
       {notice && (
@@ -297,6 +312,8 @@ export function InspirationSection({ locale, notes, full, themes, archivedThemes
               locale={locale}
               making={making === note.id}
               problem={makeProblem?.id === note.id ? makeProblem.key : null}
+              canAdd={canAdd}
+              canChange={canChange}
               onMake={make}
               onEdit={(chosen) => { setNotice(null); setMakeProblem(null); setEditing({ note: chosen }); }}
               onRemove={(chosen) => { setNotice(null); setMakeProblem(null); setRemoveProblem(null); setRemoving(chosen); }}

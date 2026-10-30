@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, ImagePlus, Pencil, Plus, Star } from 'lucide-react';
+import { Download, Eye, ImagePlus, Pencil, Plus, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -16,6 +16,7 @@ import { LIMITS } from '../../lib/plan/limits.js';
 import { channelLabel } from './choices.js';
 import { CommentDialog, screenshotAddress } from './comment-dialog.jsx';
 import { ReviewCard } from './review-card.jsx';
+import { useRights } from '../rights.jsx';
 import { sendUnconfirmed } from '../send.js';
 import { ShowMore, usePages } from './show-more.jsx';
 
@@ -34,13 +35,16 @@ function postNameOf(comment, locale) {
  * large, the words, who, the stars, where and when, the permission as a chip),
  * Add and edit in a window, and Make a post on a comment the customer said Yes
  * to: a new post with the comment's card as its picture, opened in the maker.
- * The comments come in pages: the first, then Show more.
+ * The comments come in pages: the first, then Show more. Who is here
+ * (`useRights`): Add and Make a post for a person who may add; Edit for one
+ * who may change, else Open, which shows the comment to read only.
  *
  * @param {{ locale: string, today: string, comments: import('../../lib/data/customers.js').Comment[], next: string | null,
  *   networks: string[], business: string, reviewLink: string }} props
  */
 export function SaidTab({ locale, today, comments, next, networks, business, reviewLink }) {
   const router = useRouter();
+  const { add: canAdd, change: canChange } = useRights();
   const pages = usePages({ first: comments, next, path: '/api/comments' });
   const [editing, setEditing] = useState(/** @type {object | null} */ (null));
   const [open, setOpen] = useState(false);
@@ -94,14 +98,16 @@ export function SaidTab({ locale, today, comments, next, networks, business, rev
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button type="button" onClick={startAdd}>
-            <Plus aria-hidden="true" />
-            {t('comments.add', locale)}
-          </Button>
+      {canAdd && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <Button type="button" onClick={startAdd}>
+              <Plus aria-hidden="true" />
+              {t('comments.add', locale)}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {notice && <p role="status" className="text-sm text-muted-foreground">{t(notice, locale)}</p>}
       {problem && <p role="alert" className="text-sm text-destructive">{t(problem, locale)}</p>}
@@ -123,6 +129,8 @@ export function SaidTab({ locale, today, comments, next, networks, business, rev
                 locale={locale}
                 busy={making !== null}
                 making={making === comment.id}
+                canAdd={canAdd}
+                canChange={canChange}
                 onEdit={() => startEdit(comment)}
                 onMakePost={() => makePost(comment)}
               />
@@ -145,7 +153,7 @@ export function SaidTab({ locale, today, comments, next, networks, business, rev
   );
 }
 
-function CommentCard({ comment, locale, busy, making, onEdit, onMakePost }) {
+function CommentCard({ comment, locale, busy, making, canAdd, canChange, onEdit, onMakePost }) {
   const who = comment.name || t('comments.someone', locale);
   return (
     <Card className="h-full gap-3 py-4">
@@ -169,15 +177,15 @@ function CommentCard({ comment, locale, busy, making, onEdit, onMakePost }) {
         {comment.screenshot && <Screenshot comment={comment} locale={locale} />}
       </CardContent>
       <CardFooter className="mt-auto flex flex-wrap items-center gap-2 px-4">
-        {comment.permission === 'yes' && (
+        {comment.permission === 'yes' && canAdd && (
           <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={onMakePost}>
             <ImagePlus aria-hidden="true" />
             {making ? t('comments.making', locale) : t('comments.makePost', locale)}
           </Button>
         )}
         <Button type="button" size="sm" variant="ghost" className="ml-auto" onClick={onEdit}>
-          <Pencil aria-hidden="true" />
-          {t('comments.edit', locale)}
+          {canChange ? <Pencil aria-hidden="true" /> : <Eye aria-hidden="true" />}
+          {t(canChange ? 'comments.edit' : 'comments.open', locale)}
         </Button>
       </CardFooter>
     </Card>

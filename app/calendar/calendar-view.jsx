@@ -20,6 +20,7 @@ import { CalendarHeader } from './header.jsx';
 import { IdeasRow } from './ideas-row.jsx';
 import { MonthGrid } from './month-grid.jsx';
 import { CalendarFileLine, useCalendarFile } from './calendar-file.jsx';
+import { useRights } from '../rights.jsx';
 import { calendarFileRest, colourOf, coloursOf, mixOf, proposalsFor } from './rules.js';
 import { sendUnconfirmed } from '../send.js';
 import { TodayCard } from './today-card.jsx';
@@ -38,11 +39,17 @@ import { WeekView } from './week-view.jsx';
  * Print this campaign (in a campaign's sheet) prints the campaign as a page
  * of its own: while it prints, the calendar's own parts stay off the paper.
  *
+ * Who is here (`useRights`): a person who may add gets Fill my month, New
+ * campaign, Add to my calendar and the new posts and ideas; only one who may
+ * change gets the start card that leads to My plan and the presses that
+ * change a kept post, follow-up or campaign. A Viewer reads, prints and opens.
+ *
  * @param {{ locale: string } & Awaited<ReturnType<typeof import('./read.js').readCalendar>>} props
  */
 export function CalendarView(props) {
   const { locale, view, today, business, networks, perWeek, themes, archivedThemes, tiles, ideas, moreIdeas, campaigns, specialDays, due, goal, followUps, firstVisit } = props;
   const router = useRouter();
+  const rights = useRights();
   const colours = useMemo(() => coloursOf([...archivedThemes, ...themes]), [themes, archivedThemes]);
   const [openDay, setOpenDay] = useState(/** @type {string | null} */ (null));
   const [campaignId, setCampaignId] = useState(/** @type {number | null} */ (null));
@@ -107,9 +114,10 @@ export function CalendarView(props) {
           fileRest={calendarFileRest(view, tiles)}
           fileMaking={calendarFile.step === 'making'}
           mix={mixOf(view, tiles, [...themes, ...archivedThemes])}
+          canAdd={rights.add}
         />
         <CalendarFileLine locale={locale} file={calendarFile} />
-        {firstVisit && (
+        {firstVisit && rights.change && (
           <Card data-print-hidden className="py-3">
             <div className="flex flex-wrap items-center gap-3 px-3">
               <Target aria-hidden="true" className="size-5 text-muted-foreground" />

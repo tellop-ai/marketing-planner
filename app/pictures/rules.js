@@ -201,10 +201,10 @@ export function canSendChange(words, resting) {
 /**
  * The AI problems that keep refusing until something outside this page
  * changes (AI paused or not allowed for the app, Tellop signed out or on
- * another account, the allowance used up, AI not on offer): after one of
- * them, New picture and Change this picture rest with the reason. A problem
- * that may pass on the next press (busy, no connection, a refused request, an
- * answer that did not read) does not rest them.
+ * another account, the allowance or the app's AI for the day used up, AI not
+ * on offer): after one of them, New picture and Change this picture rest with
+ * the reason. A problem that may pass on the next press (busy, no connection,
+ * a refused request, an answer that did not read) does not rest them.
  */
 export const LASTING_AI_PROBLEMS = Object.freeze([
   'ai.paused',
@@ -216,6 +216,8 @@ export const LASTING_AI_PROBLEMS = Object.freeze([
   'ai.unavailable',
   'ai.practice',
   'ai.appAiOff',
+  'ai.dailyLimit',
+  'ai.appPaused',
 ]);
 
 /**

@@ -13,6 +13,7 @@ import { LIMITS, readLink } from '../../lib/plan/limits.js';
 
 import { refusedHere, useAutoSave } from './auto-save.js';
 import { ResultLine } from './result-line.jsx';
+import { useRights } from '../rights.jsx';
 
 const PLAN_ADDRESS = '/api/plan';
 
@@ -36,6 +37,7 @@ function linksOf(profile) {
  * @param {{ locale: string, profile: Record<string, unknown> }} props
  */
 export function LinksCard({ locale, profile }) {
+  const { change: canChange } = useRights();
   const [links, setLinks] = useState(() => linksOf(profile));
   const [track, setTrack] = useState(() => profile.trackLinks !== false);
   const { queue, result, setResult } = useAutoSave();
@@ -73,6 +75,7 @@ export function LinksCard({ locale, profile }) {
             <Switch
               id="plan-track-links"
               checked={track}
+              disabled={!canChange}
               aria-describedby="plan-track-links-hint"
               onCheckedChange={(next) => {
                 const on = next === true;

@@ -36,7 +36,7 @@ const resultImport = await import('../lib/data/result-import.js');
 const route = await import('../app/api/results/import/route.js');
 const kinds = await import('../lib/plan/result-kinds.js');
 const { OWNER } = await import('../lib/plan/owner.js');
-const { bounded, measured, mostInFlight } = await import('./records-bounds.mjs');
+const { bounded, localBatch, measured, mostInFlight } = await import('./records-bounds.mjs');
 
 const realFetch = globalThis.fetch;
 globalThis.fetch = async () => {
@@ -464,15 +464,10 @@ test('the import’s writes name their owner inside each change', async () => {
   await clear();
   const mine = await shared({ day: '2026-08-10' });
   const ACTION = Symbol.for('tellop.internalRecordsAction');
-  const store = globalThis[Symbol.for('tellop.template.storage')];
   const steps = [];
   globalThis[ACTION] = async (sent) => {
     steps.push(...sent);
-    return store.client.$transaction(async (records) => {
-      const answers = [];
-      for (const step of sent) answers.push(await records[step.model[0].toLowerCase() + step.model.slice(1)][step.action](step.args ?? {}));
-      return answers;
-    });
+    return localBatch(sent);
   };
   const prior = process.env.TELLOP_INTERNAL_RECORDS;
   process.env.TELLOP_INTERNAL_RECORDS = '1';

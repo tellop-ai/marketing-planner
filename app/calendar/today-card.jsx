@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 
 import { t } from '../../lib/i18n/index.js';
 import { PictureThumb } from '../pictures/thumb.jsx';
+import { useRights } from '../rights.jsx';
 
 import { FollowUpsList } from './follow-ups-list.jsx';
 import { shortDay, timeText } from './format.js';
@@ -40,12 +41,15 @@ function WeekGoal({ locale, goal, className }) {
  * its name and **Share**, which opens the post on its share part; the week's
  * goal on its right. With no post due, only the goal, smaller. Under them,
  * the people to follow up with today (`FollowUpsList`), when there are any.
+ * A person who may not change the post (marking it shared changes it) gets
+ * **Open the post** in place of Share.
  *
  * @param {{ locale: string, today: string, due: { id: number, name: string, day: string, time: string | null, picture: object | null } | null,
  *   colour: number | null, goal: { goal: number, shared: number, filled: number }, business: string,
  *   followUps?: Array<{ id: number, name: string, contact: string, askedAbout: string, followUpOn: string }> | null }} props
  */
 export function TodayCard({ locale, today, due, colour, goal, business, followUps }) {
+  const { change } = useRights();
   const people = Array.isArray(followUps) && followUps.length > 0
     ? <FollowUpsList locale={locale} today={today} business={business} followUps={followUps} className="border-t border-border px-3 pt-2.5" />
     : null;
@@ -72,10 +76,16 @@ export function TodayCard({ locale, today, due, colour, goal, business, followUp
             <div className="text-xs text-muted-foreground">{due.time ? `${when} · ${timeText(due.time, locale)}` : when}</div>
             <div className="line-clamp-2 text-base font-semibold break-words">{name}</div>
           </div>
-          <Link href={`/posts/${due.id}#share`} className={cn(buttonVariants(), 'ml-2')}>
-            <Send aria-hidden="true" />
-            {t('calendar.share', locale)}
-          </Link>
+          {change ? (
+            <Link href={`/posts/${due.id}#share`} className={cn(buttonVariants(), 'ml-2')}>
+              <Send aria-hidden="true" />
+              {t('calendar.share', locale)}
+            </Link>
+          ) : (
+            <Link href={`/posts/${due.id}`} className={cn(buttonVariants({ variant: 'outline' }), 'ml-2')}>
+              {t('week.openPost', locale)}
+            </Link>
+          )}
         </div>
         <WeekGoal locale={locale} goal={goal} className="sm:ml-auto" />
       </div>

@@ -383,7 +383,7 @@
   .figure span {
     width: 0.9rem;
     height: 0.9rem;
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
   }
 
   /*

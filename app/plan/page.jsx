@@ -5,6 +5,7 @@ import { getLocale, t } from '../../lib/i18n/index.js';
 import { todayCivil } from '../../lib/plan/days.js';
 import { OWNER } from '../../lib/plan/owner.js';
 import { BUILT_IN_DAYS, LAST_MOVING_YEAR } from '../../lib/plan/special-days.js';
+import { rightsForThisVisit } from '../../lib/plan/visitor.js';
 import { Shell } from '../shell.jsx';
 
 import { BrandCard } from './brand-card.jsx';
@@ -21,12 +22,19 @@ import { ThemesCard } from './themes-card.jsx';
  * saves by itself when the person changes it (no Save buttons: `./auto-save.js`),
  * with one quiet line a card. The hashtag sets kept in Ready words are
  * offered as choices for a theme's hashtags. What it reads, and in how many
- * records calls: `readPlanPage` (`./read.js`).
+ * records calls: `readPlanPage` (`./read.js`). My plan is the business's
+ * shared settings: a person who may not change them (`lib/plan/roles.js`)
+ * reads every field, unchangeable, with one line that says so, and gets
+ * none of the cards' presses (each card asks `useRights`). When the person
+ * could not be read (`rights.unknown`) the fields stay unchangeable, but the
+ * page does not say "you can read this plan": the Shell says what is wrong.
  */
 export const dynamic = 'force-dynamic';
 
 export default async function PlanPage() {
   const locale = getLocale();
+  // Who is here decides what the page draws (lib/plan/roles.js); asked before any read, on its own.
+  const rights = await rightsForThisVisit();
   let read;
   try {
     read = await readPlanPage(OWNER);
@@ -36,7 +44,7 @@ export default async function PlanPage() {
   const title = <h1 className="text-xl font-semibold">{t('menu.plan', locale)}</h1>;
   if (!read.plan) {
     return (
-      <Shell locale={locale} path="/plan">
+      <Shell locale={locale} path="/plan" rights={rights}>
         {title}
         <Alert variant="destructive">
           <AlertDescription>{t(read.problem, locale)}</AlertDescription>
@@ -48,9 +56,10 @@ export default async function PlanPage() {
   const today = todayCivil();
   const builtInDays = BUILT_IN_DAYS.map((day) => ({ key: day.key, where: day.where, nameKey: day.nameKey }));
   return (
-    <Shell locale={locale} path="/plan" business={plan.profile.businessName}>
+    <Shell locale={locale} path="/plan" rights={rights} business={plan.profile.businessName}>
       {title}
-      <div className="flex w-full max-w-4xl flex-col gap-4">
+      {!rights.change && !rights.unknown && <p className="-mt-2 text-sm text-muted-foreground">{t('plan.readOnly', locale)}</p>}
+      <fieldset disabled={!rights.change} className="flex w-full min-w-0 max-w-4xl flex-col gap-4">
         <BusinessCard locale={locale} profile={plan.profile} />
         <BrandCard locale={locale} profile={plan.profile} />
         <PostsCard locale={locale} profile={plan.profile} />
@@ -65,7 +74,7 @@ export default async function PlanPage() {
           movingOutdated={Number(today.slice(0, 4)) > LAST_MOVING_YEAR}
         />
         <LinksCard locale={locale} profile={plan.profile} />
-      </div>
+      </fieldset>
     </Shell>
   );
 }

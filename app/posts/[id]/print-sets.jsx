@@ -37,21 +37,29 @@ export function PrintSlides({ locale, full, slides, themeColour, business, shown
 /**
  * The post's video plan as a page, shown only on paper while the maker
  * prints it (`shown`): the post's name, the plan's length, the hook, the
- * shots with their seconds, the lines on screen and the cover.
+ * shots with their seconds, the lines on screen and the cover. `onScreen`:
+ * shown on the screen too, under the post's words (`./post-view.jsx`), where
+ * the post's own name above it stands for its heading.
  *
- * @param {{ locale: string, post: any, shown: boolean }} props
+ * @param {{ locale: string, post: any, shown: boolean, onScreen?: boolean }} props
  */
-export function PrintVideoPlan({ locale, post, shown }) {
+export function PrintVideoPlan({ locale, post, shown, onScreen = false }) {
   const plan = videoPlanOf(post.videoPlan);
   if (plan === null) return null;
   return (
-    <section className={cn('hidden flex-col gap-4 text-sm', shown && 'print:flex')}>
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">{post.name || t('post.untitled', locale)}</h1>
-        <p className="text-muted-foreground">
+    <section className={cn('hidden flex-col gap-4 text-sm', shown && 'print:flex', onScreen && 'flex border-t border-border pt-3')}>
+      {onScreen ? (
+        <h2 className="text-base font-semibold">
           {t('maker.video.title', locale)} · {t('maker.video.total', locale, { n: String(videoPlanSeconds(plan)) })}
-        </p>
-      </div>
+        </h2>
+      ) : (
+        <div className="flex flex-col gap-1">
+          <h1 className="text-xl font-semibold">{post.name || t('post.untitled', locale)}</h1>
+          <p className="text-muted-foreground">
+            {t('maker.video.title', locale)} · {t('maker.video.total', locale, { n: String(videoPlanSeconds(plan)) })}
+          </p>
+        </div>
+      )}
       {plan.hook !== '' && (
         <div className="flex flex-col gap-1">
           <h2 className="font-semibold">{t('maker.video.hook', locale)}</h2>

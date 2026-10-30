@@ -10,6 +10,7 @@ import { getLocale } from '../../lib/i18n/index.js';
 import { addDays, isCivilMonth, monthOf, todayCivil } from '../../lib/plan/days.js';
 import { parseNetworkList } from '../../lib/plan/networks.js';
 import { OWNER } from '../../lib/plan/owner.js';
+import { rightsForThisVisit } from '../../lib/plan/visitor.js';
 
 import { Shell } from '../shell.jsx';
 
@@ -28,6 +29,8 @@ const POSTS_AHEAD = 31;
 /** @param {{ searchParams: Promise<Record<string, string | string[] | undefined>> }} props */
 export default async function CustomersPage({ searchParams }) {
   const locale = getLocale();
+  // Who is here decides what the page draws (lib/plan/roles.js); asked before any read, on its own.
+  const rights = await rightsForThisVisit();
   const query = (await searchParams) ?? {};
   const today = todayCivil();
   const month = typeof query.month === 'string' && isCivilMonth(query.month) ? query.month : monthOf(today);
@@ -43,7 +46,7 @@ export default async function CustomersPage({ searchParams }) {
   const names = { ...Object.fromEntries(named), ...(await postNamesFor(OWNER, missing)) };
 
   return (
-    <Shell locale={locale} path="/customers" business={profile.businessName}>
+    <Shell locale={locale} path="/customers" rights={rights} business={profile.businessName}>
       <CustomersView
         locale={locale}
         tab={tab}
